@@ -58,7 +58,7 @@ class GY91 {
 
 				float x, y, z;
 
-				readAccel(x, y, z);
+				getAccel(x, y, z);
 				Serial.print("[BMP] Accel: ");
 				Serial.print(x);
 				Serial.print(", ");
@@ -66,7 +66,7 @@ class GY91 {
 				Serial.print(", ");
 				Serial.println(z);
 
-				readGyro(x, y, z);
+				getGyro(x, y, z);
 				Serial.print("[BMP] Gyro: ");
 				Serial.print(x);
 				Serial.print(", ");
@@ -74,7 +74,7 @@ class GY91 {
 				Serial.print(", ");
 				Serial.println(z);
 
-				readMag(x, y, z);
+				getMag(x, y, z);
 				Serial.print("[BMP] Mag: ");
 				Serial.print(x);
 				Serial.print(", ");
@@ -99,22 +99,22 @@ class GY91 {
 			Serial.println(" m");
 		}
 
-		void readAccel(float& x, float& y, float& z) {
+		void getAccel(float& x, float& y, float& z) {
 			x = _mpu.accel_x_mps2() - _offsets[0];
 			y = _mpu.accel_y_mps2() - _offsets[1];
 			z = _mpu.accel_z_mps2() - _offsets[2];
 		}
 
-		void readGyro(float& x, float& y, float& z) {
+		void getGyro(float& x, float& y, float& z) {
 			x = _mpu.gyro_x_radps() - _offsets[3];
 			y = _mpu.gyro_y_radps() - _offsets[4];
 			z = _mpu.gyro_z_radps() - _offsets[5];
 		}
 
-		void readMag(float& x, float& y, float& z) {
-			x = _mpu.mag_x_ut();
-			y = _mpu.mag_y_ut();
-			z = _mpu.mag_z_ut();
+		void getMag(float& x, float& y, float& z) {
+			x = _mpu.mag_x_ut() - _offsets[6];
+			y = _mpu.mag_y_ut() - _offsets[7];
+			z = _mpu.mag_z_ut() - _offsets[8];
 		}
 
 		void calibrate(uint8_t iterations) {
@@ -133,6 +133,10 @@ class GY91 {
 				_offsets[3] += _mpu.gyro_x_radps();
 				_offsets[4] += _mpu.gyro_y_radps();
 				_offsets[5] += _mpu.gyro_z_radps();
+
+				_offsets[6] += _mpu.mag_x_ut();
+				_offsets[7] += _mpu.mag_y_ut();
+				_offsets[8] += _mpu.mag_z_ut();
 			}
 
 			for (float& _offset : _offsets)
@@ -140,7 +144,7 @@ class GY91 {
 
 			Serial.print("Calibration finished, the offsets are: ");
 
-			for (uint8_t i = 0; i < 6; i++) {
+			for (uint8_t i = 0; i < 9; i++) {
 				if (i > 0)
 					Serial.print(", ");
 
@@ -151,8 +155,8 @@ class GY91 {
 		}
 
 	private:
-		float _offsets[6] {};
+		float _offsets[9] {};
 
-		bfs::Mpu9250 _mpu = bfs::Mpu9250(&SPI, 17);
-		Adafruit_BMP280 _bmp = Adafruit_BMP280(16, &SPI);
+		bfs::Mpu9250 _mpu = bfs::Mpu9250(&SPI, 26);
+		Adafruit_BMP280 _bmp = Adafruit_BMP280(27, &SPI);
 };
