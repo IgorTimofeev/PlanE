@@ -7,7 +7,6 @@ void setup() {
 	Serial.begin(115200);
 
 	gy91.begin();
-
 }
 
 void loop() {
