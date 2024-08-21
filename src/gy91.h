@@ -30,7 +30,7 @@ class GY91 {
 //			_mpu.ConfigDlpfBandwidth(bfs::Mpu9250::DLPF_BANDWIDTH_184HZ);
 //			_mpu.ConfigSrd(0);
 
-			_mpu.ConfigSrd(19);
+			_mpu.ConfigSrd(0);
 
 			if (!_bmp.begin()) {
 				Serial.println("BMP280 setup failed");
