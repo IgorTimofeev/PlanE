@@ -50,47 +50,46 @@ class GY91 {
 		}
 
 		void tick() {
-			/* Check if data read */
-			if (_mpu.Read()) {
-				Serial.println("-------------------------- Govno --------------------------");
+			Serial.println("-------------------------- Govno --------------------------");
 
-				Serial.print("[MPU] New imu data / mag data: ");
-				Serial.print(_mpu.new_imu_data());
-				Serial.print(", ");
-				Serial.println(_mpu.new_mag_data());
-
-				float x, y, z;
-
-				getAccel(x, y, z);
-				Serial.print("[MPU] Accel: ");
-				Serial.print(x);
-				Serial.print(", ");
-				Serial.print(y);
-				Serial.print(", ");
-				Serial.println(z);
-
-				getGyro(x, y, z);
-				Serial.print("[MPU] Gyro: ");
-				Serial.print(x);
-				Serial.print(", ");
-				Serial.print(y);
-				Serial.print(", ");
-				Serial.println(z);
-
-				getMag(x, y, z);
-				Serial.print("[MPU] Mag: ");
-				Serial.print(x);
-				Serial.print(", ");
-				Serial.print(y);
-				Serial.print(", ");
-				Serial.println(z);
-
-				Serial.print("[MPU] Mag degrees: ");
-				Serial.println(degrees(atan2(_mpu.mag_y_ut(), _mpu.mag_x_ut())));
-
-				Serial.print("[MPU] Temperature: ");
-				Serial.println(_mpu.die_temp_c());
-			}
+//			if (_mpu.Read()) {
+//				Serial.print("[MPU] New imu data / mag data: ");
+//				Serial.print(_mpu.new_imu_data());
+//				Serial.print(", ");
+//				Serial.println(_mpu.new_mag_data());
+//
+//				float x, y, z;
+//
+//				getAccel(x, y, z);
+//				Serial.print("[MPU] Accel: ");
+//				Serial.print(x);
+//				Serial.print(", ");
+//				Serial.print(y);
+//				Serial.print(", ");
+//				Serial.println(z);
+//
+//				getGyro(x, y, z);
+//				Serial.print("[MPU] Gyro: ");
+//				Serial.print(x);
+//				Serial.print(", ");
+//				Serial.print(y);
+//				Serial.print(", ");
+//				Serial.println(z);
+//
+//				getMag(x, y, z);
+//				Serial.print("[MPU] Mag: ");
+//				Serial.print(x);
+//				Serial.print(", ");
+//				Serial.print(y);
+//				Serial.print(", ");
+//				Serial.println(z);
+//
+//				Serial.print("[MPU] Mag degrees: ");
+//				Serial.println(degrees(atan2(_mpu.mag_y_ut(), _mpu.mag_x_ut())));
+//
+//				Serial.print("[MPU] Temperature: ");
+//				Serial.println(_mpu.die_temp_c());
+//			}
 
 			Serial.print("[BMP] Temperature: ");
 			Serial.print(_bmp.readTemperature());
@@ -174,49 +173,49 @@ class GY91 {
 
 			Serial.println();
 		}
-
-		void update_rpy(float qw, float qx, float qy, float qz) {
-			// Define output variables from updated quaternion---these are Tait-Bryan angles, commonly used in aircraft orientation.
-			// In this coordinate system, the positive z-axis is down toward Earth.
-			// Yaw is the angle between Sensor x-axis and Earth magnetic North (or true North if corrected for local declination, looking down on the sensor positive yaw is counterclockwise.
-			// Pitch is angle between sensor x-axis and Earth ground plane, toward the Earth is positive, up toward the sky is negative.
-			// Roll is angle between sensor y-axis and Earth ground plane, y-axis up is positive roll.
-			// These arise from the definition of the homogeneous rotation matrix constructed from quaternions.
-			// Tait-Bryan angles as well as Euler angles are non-commutative; that is, the get the correct orientation the rotations must be
-			// applied in the correct order which for this configuration is yaw, pitch, and then roll.
-			// For more see http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles which has additional links.
-			float a12, a22, a31, a32, a33;  // rotation matrix coefficients for Euler angles and gravity components
-			a12 = 2.0f * (qx * qy + qw * qz);
-			a22 = qw * qw + qx * qx - qy * qy - qz * qz;
-			a31 = 2.0f * (qw * qx + qy * qz);
-			a32 = 2.0f * (qx * qz - qw * qy);
-			a33 = qw * qw - qx * qx - qy * qy + qz * qz;
-			rpy[0] = atan2f(a31, a33);
-			rpy[1] = -asinf(a32);
-			rpy[2] = atan2f(a12, a22);
-			rpy[0] *= 180.0f / PI;
-			rpy[1] *= 180.0f / PI;
-			rpy[2] *= 180.0f / PI;
-//			rpy[2] += magnetic_declination;
-			if (rpy[2] >= +180.f)
-				rpy[2] -= 360.f;
-			else if (rpy[2] < -180.f)
-				rpy[2] += 360.f;
-
-			Serial.print("[MPU] Yaw pitch roll: ");
-			Serial.print(rpy[0]);
-			Serial.print(", ");
-			Serial.print(rpy[1]);
-			Serial.print(", ");
-			Serial.println(rpy[2]);
-		}
+//
+//		void update_rpy(float qw, float qx, float qy, float qz) {
+//			// Define output variables from updated quaternion---these are Tait-Bryan angles, commonly used in aircraft orientation.
+//			// In this coordinate system, the positive z-axis is down toward Earth.
+//			// Yaw is the angle between Sensor x-axis and Earth magnetic North (or true North if corrected for local declination, looking down on the sensor positive yaw is counterclockwise.
+//			// Pitch is angle between sensor x-axis and Earth ground plane, toward the Earth is positive, up toward the sky is negative.
+//			// Roll is angle between sensor y-axis and Earth ground plane, y-axis up is positive roll.
+//			// These arise from the definition of the homogeneous rotation matrix constructed from quaternions.
+//			// Tait-Bryan angles as well as Euler angles are non-commutative; that is, the get the correct orientation the rotations must be
+//			// applied in the correct order which for this configuration is yaw, pitch, and then roll.
+//			// For more see http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles which has additional links.
+//			float a12, a22, a31, a32, a33;  // rotation matrix coefficients for Euler angles and gravity components
+//			a12 = 2.0f * (qx * qy + qw * qz);
+//			a22 = qw * qw + qx * qx - qy * qy - qz * qz;
+//			a31 = 2.0f * (qw * qx + qy * qz);
+//			a32 = 2.0f * (qx * qz - qw * qy);
+//			a33 = qw * qw - qx * qx - qy * qy + qz * qz;
+//			rpy[0] = atan2f(a31, a33);
+//			rpy[1] = -asinf(a32);
+//			rpy[2] = atan2f(a12, a22);
+//			rpy[0] *= 180.0f / PI;
+//			rpy[1] *= 180.0f / PI;
+//			rpy[2] *= 180.0f / PI;
+////			rpy[2] += magnetic_declination;
+//			if (rpy[2] >= +180.f)
+//				rpy[2] -= 360.f;
+//			else if (rpy[2] < -180.f)
+//				rpy[2] += 360.f;
+//
+//			Serial.print("[MPU] Yaw pitch roll: ");
+//			Serial.print(rpy[0]);
+//			Serial.print(", ");
+//			Serial.print(rpy[1]);
+//			Serial.print(", ");
+//			Serial.println(rpy[2]);
+//		}
 
 	private:
 		float _offsets[9] {};
-		float rpy[3] {0.f, 0.f, 0.f};
-		float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+//		float rpy[3] {0.f, 0.f, 0.f};
+//		float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};
 
-		QuaternionFilter quat_filter;
+//		QuaternionFilter quat_filter;
 		bfs::Mpu9250 _mpu = bfs::Mpu9250(&SPI, 26);
 		Adafruit_BMP280 _bmp = Adafruit_BMP280(27, &SPI);
 };
