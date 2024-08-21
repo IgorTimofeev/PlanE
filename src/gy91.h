@@ -100,6 +100,7 @@ class GY91 {
 			Serial.print("[BMP] Approx altitude: ");
 			Serial.print(_bmp.readAltitude(1022));
 			Serial.println(" m");
+
 			float an = -_mpu.accel_x_mps2();
 			float ae = +_mpu.accel_y_mps2();
 			float ad = +_mpu.accel_z_mps2();
