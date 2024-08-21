@@ -46,7 +46,7 @@ class GY91 {
 				Adafruit_BMP280::STANDBY_MS_500 /* Standby time. */
 			);
 
-			calibrate(70);
+//			calibrate(70);
 		}
 
 		void tick() {
@@ -85,6 +85,9 @@ class GY91 {
 				Serial.print(", ");
 				Serial.println(z);
 
+				Serial.print("[MPU] Mag degrees: ");
+				Serial.println(degrees(atan2(_mpu.mag_y_ut(), _mpu.mag_x_ut())));
+
 				Serial.print("[MPU] Temperature: ");
 				Serial.println(_mpu.die_temp_c());
 			}
@@ -101,19 +104,19 @@ class GY91 {
 			Serial.print(_bmp.readAltitude(1022));
 			Serial.println(" m");
 
-			float an = -_mpu.accel_x_mps2();
-			float ae = +_mpu.accel_y_mps2();
-			float ad = +_mpu.accel_z_mps2();
-			float gn = +_mpu.gyro_x_radps();
-			float ge = -_mpu.gyro_y_radps();
-			float gd = -_mpu.gyro_z_radps();
-			float mn = +_mpu.mag_z_ut();
-			float me = -_mpu.mag_y_ut();
-			float md = +_mpu.mag_z_ut();
-
-			quat_filter.update(an, ae, ad, gn, ge, gd, mn, me, md, q);
-
-			update_rpy(q[0], q[1], q[2], q[3]);
+//			float an = -_mpu.accel_x_mps2();
+//			float ae = +_mpu.accel_y_mps2();
+//			float ad = +_mpu.accel_z_mps2();
+//			float gn = +_mpu.gyro_x_radps();
+//			float ge = -_mpu.gyro_y_radps();
+//			float gd = -_mpu.gyro_z_radps();
+//			float mn = +_mpu.mag_z_ut();
+//			float me = -_mpu.mag_y_ut();
+//			float md = +_mpu.mag_z_ut();
+//
+//			quat_filter.update(an, ae, ad, gn, ge, gd, mn, me, md, q);
+//
+//			update_rpy(q[0], q[1], q[2], q[3]);
 		}
 
 
