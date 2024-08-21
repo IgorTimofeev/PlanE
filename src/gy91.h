@@ -19,18 +19,7 @@ class GY91 {
 		void begin() {
 			SPI.begin();
 
-			// start communication with IMU
-			if (IMU.begin() < 0) {
-				Serial.println("IMU initialization unsuccessful");
-				while(1) {}
-			}
-
-//			IMU.ConfigAccelRange(bfs::Mpu9250::ACCEL_RANGE_16G);
-//			IMU.ConfigGyroRange(bfs::Mpu9250::GYRO_RANGE_2000DPS);
-//			IMU.ConfigDlpfBandwidth(bfs::Mpu9250::DLPF_BANDWIDTH_184HZ);
-//			IMU.ConfigSrd(0);
-
-			IMU.setSrd(0);
+			Serial.println("Starting BMP280");
 
 			if (!_bmp.begin()) {
 				Serial.println("BMP280 setup failed");
@@ -46,39 +35,73 @@ class GY91 {
 				Adafruit_BMP280::STANDBY_MS_500 /* Standby time. */
 			);
 
+
+			Serial.println("Starting MPU9250");
+
+			// start communication with IMU
+			if (_imu.begin() < 0) {
+				Serial.println("IMU initialization unsuccessful");
+				while(1) {}
+			}
+
+//			IMU.ConfigAccelRange(bfs::Mpu9250::ACCEL_RANGE_16G);
+//			IMU.ConfigGyroRange(bfs::Mpu9250::GYRO_RANGE_2000DPS);
+//			IMU.ConfigDlpfBandwidth(bfs::Mpu9250::DLPF_BANDWIDTH_184HZ);
+//			IMU.ConfigSrd(0);
+
+			_imu.setSrd(0);
+
+			Serial.println("Calibrating");
+			_imu.calibrateAccel();
+			_imu.calibrateGyro();
+			_imu.calibrateMag();
+			Serial.println("Calibrating finished");
+
 //			calibrate(70);
 		}
 
 		void tick() {
-			Serial.println("-------------------------- Govno --------------------------");
+			Serial.println("-------------------------- MP9250 --------------------------");
 
-			IMU.readSensor();
+			_imu.readSensor();
 			Serial.print("[MPU] Accel: ");
-			Serial.print(IMU.getAccelX_mss());
+			Serial.print(_imu.getAccelX_mss());
 			Serial.print(", ");
-			Serial.print(IMU.getAccelY_mss());
+			Serial.print(_imu.getAccelY_mss());
 			Serial.print(", ");
-			Serial.println(IMU.getAccelZ_mss());
+			Serial.println(_imu.getAccelZ_mss());
+
+			Serial.print("Pitch / roll: ");
+			auto roll = atan2(_imu.getAccelY_mss() , _imu.getAccelZ_mss());
+			auto pitch = atan2((-_imu.getAccelX_mss()) , sqrt(_imu.getAccelY_mss() * _imu.getAccelY_mss() + _imu.getAccelZ_mss() * _imu.getAccelZ_mss()));
+			Serial.print(degrees(pitch));
+			Serial.print(", ");
+			Serial.println(degrees(roll));
+
+			Serial.print("Mag rotation: ");
+			Serial.println(degrees(atan2(_imu.getMagY_uT(), _imu.getMagX_uT())));
 
 			Serial.print("[MPU] Gyro: ");
-			Serial.print(IMU.getGyroX_rads());
+			Serial.print(_imu.getGyroX_rads());
 			Serial.print(", ");
-			Serial.print(IMU.getGyroY_rads());
+			Serial.print(_imu.getGyroY_rads());
 			Serial.print(", ");
-			Serial.println(IMU.getGyroZ_rads());
+			Serial.println(_imu.getGyroZ_rads());
 
 			Serial.print("[MPU] Mag: ");
-			Serial.print(IMU.getMagX_uT());
+			Serial.print(_imu.getMagX_uT());
 			Serial.print(", ");
-			Serial.print(IMU.getMagY_uT());
+			Serial.print(_imu.getMagY_uT());
 			Serial.print(", ");
-			Serial.println(IMU.getMagZ_uT());
+			Serial.println(_imu.getMagZ_uT());
 
 			Serial.print("[MPU] Mag degrees: ");
-			Serial.println(degrees(atan2(IMU.getMagX_uT(), IMU.getMagY_uT())));
+			Serial.println(degrees(atan2(_imu.getMagX_uT(), _imu.getMagY_uT())));
+
+			Serial.println("-------------------------- BMP280 --------------------------");
 
 			Serial.print("[MPU] Temperature: ");
-			Serial.println(IMU.getTemperature_C());
+			Serial.println(_imu.getTemperature_C());
 
 			Serial.print("[BMP] Temperature: ");
 			Serial.print(_bmp.readTemperature());
@@ -188,6 +211,6 @@ class GY91 {
 
 //		QuaternionFilter quat_filter;
 
-		MPU9250 IMU = MPU9250(SPI, 26);
+		MPU9250 _imu = MPU9250(SPI, 26);
 		Adafruit_BMP280 _bmp = Adafruit_BMP280(27, &SPI);
 };
