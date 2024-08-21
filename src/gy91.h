@@ -12,9 +12,7 @@
 
 class GY91 {
 	public:
-		GY91() {
-
-		}
+		GY91() = default;
 
 		void begin() {
 			SPI.begin();
