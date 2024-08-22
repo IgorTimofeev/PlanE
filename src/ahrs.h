@@ -16,47 +16,47 @@ class AHRS {
 		AHRS() = default;
 
 		void begin() {
-			Serial.println("Starting BMP280");
+			// Resetting CS pins just in case
+			pinMode(26, OUTPUT);
+			digitalWrite(26, HIGH);
 
-//			_bmp.setSampling(
-//				Adafruit_BMP280::MODE_NORMAL,
-//				Adafruit_BMP280::SAMPLING_X2,
-//				Adafruit_BMP280::SAMPLING_X16,
-//				Adafruit_BMP280::FILTER_X16,
-//				Adafruit_BMP280::STANDBY_MS_125
-//			);
+			pinMode(27, OUTPUT);
+			digitalWrite(27, HIGH);
 
-			_bmp.begin(
-				BMP280Mode::Normal,
-				BMP280Oversampling::X2,
-				BMP280Oversampling::X16,
-				BMP280Filter::X16,
-				BMP280StandbyDuration::Ms125
-			);
+			Serial.println("Starting MPU9250");
 
-//
-//			Serial.println("Starting MPU9250");
-//
-//			// start communication with IMU
-//			if (_imu.begin() < 0) {
-//				Serial.println("IMU initialization unsuccessful");
-//				while(1) {}
-//			}
+			// start communication with IMU
+			if (_imu.begin() < 0) {
+				Serial.println("IMU initialization unsuccessful");
 
-//			IMU.ConfigAccelRange(bfs::Mpu9250::ACCEL_RANGE_16G);
-//			IMU.ConfigGyroRange(bfs::Mpu9250::GYRO_RANGE_2000DPS);
-//			IMU.ConfigDlpfBandwidth(bfs::Mpu9250::DLPF_BANDWIDTH_184HZ);
-//			IMU.ConfigSrd(0);
+				while (1)
+					delay(100);
+			}
 
-//			_imu.setSrd(0);
-//
+			_imu.setSrd(0);
+
 //			Serial.println("Calibrating");
 //			_imu.calibrateAccel();
 //			_imu.calibrateGyro();
 //			_imu.calibrateMag();
 //			Serial.println("Calibrating finished");
 
-//			calibrate(70);
+			Serial.println("Starting BMP280");
+
+			if (!_bmp.begin()) {
+				Serial.println("BMP280 initialization failed, check wiring");
+
+				while (1)
+					delay(100);
+			}
+
+			_bmp.configure(
+				BMP280Mode::Normal,
+				BMP280Oversampling::X2,
+				BMP280Oversampling::X16,
+				BMP280Filter::X16,
+				BMP280StandbyDuration::Ms125
+			);
 		}
 
 		void tick() {
@@ -95,10 +95,10 @@ class AHRS {
 //			Serial.println(_imu.getMagZ_uT());
 //			Serial.print("[MPU] Temperature: ");
 //			Serial.println(_imu.getTemperature_C());
-
+//
 //			Serial.print("[MPU] Mag degrees: ");
 //			Serial.println(degrees(atan2(_imu.getMagX_uT(), _imu.getMagY_uT())));
-//
+
 			Serial.println("-------------------------- BMP280 --------------------------");
 
 			Serial.print("Temperature: ");
@@ -120,7 +120,7 @@ class AHRS {
 		}
 
 	private:
-//		MPU9250 _imu = MPU9250(SPI, 26);
+		MPU9250 _imu = MPU9250(SPI, 26);
 //		Adafruit_BMP280 _bmp = Adafruit_BMP280(27, &SPI);
 		BMP280 _bmp = BMP280(27);
 };

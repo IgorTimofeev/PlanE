@@ -64,7 +64,7 @@ enum class BMP280Register : uint8_t {
 	Control = 0xF4,
 	Config = 0xF5,
 	PressureData = 0xF7,
-	TemperatureData = 0xFA,
+	TemperatureData = 0xFA
 };
 
 class BMP280 {
@@ -73,39 +73,40 @@ class BMP280 {
 
 		}
 
-		void begin(
-			BMP280Mode mode = BMP280Mode::Normal,
-			BMP280Oversampling temperatureOversampling = BMP280Oversampling::X2,
-			BMP280Oversampling pressureOversampling = BMP280Oversampling::X16,
-			BMP280Filter filter = BMP280Filter::X16,
-			BMP280StandbyDuration standbyDuration = BMP280StandbyDuration::Ms125
-		) {
+		bool begin() {
 			// Resetting CS pin just in case
 			pinMode(_csPin, OUTPUT);
 			setChipSelect(HIGH);
 
-			// Initializing SPI bus if none
+			// Initializing SPI bus if this hasn't been done
 			SPI.begin();
 
 			// Reading factory-fused calibration offsets
 			readCalibrationData();
 
-			// Configuring sensors at least once
+			// Configuring sensor to power-on-reset state
 			configure(
-				mode,
-				temperatureOversampling,
-				pressureOversampling,
-				filter,
-				standbyDuration
+				BMP280Mode::Sleep,
+				BMP280Oversampling::None,
+				BMP280Oversampling::None,
+				BMP280Filter::None,
+				BMP280StandbyDuration::Ms1
 			);
+
+			// Checking for valid chip ID & proper SPI wiring
+			// From datasheet: "Chip ID can be read as soon as the device finished the power-on-reset"
+			if (readUint8(BMP280Register::ChipID) != 0x58)
+				return false;
+
+			return true;
 		}
 
 		void configure(
-			BMP280Mode mode,
-			BMP280Oversampling temperatureOversampling,
-			BMP280Oversampling pressureOversampling,
-			BMP280Filter filter,
-			BMP280StandbyDuration standbyDuration
+			BMP280Mode mode = BMP280Mode::Normal,
+			BMP280Oversampling temperatureOversampling = BMP280Oversampling::X2,
+			BMP280Oversampling pressureOversampling = BMP280Oversampling::X16,
+			BMP280Filter filter = BMP280Filter::X16,
+			BMP280StandbyDuration standbyDuration = BMP280StandbyDuration::Ms125
 		) {
 			// t_sb = standbyDuration
 			// filter = filter
@@ -116,8 +117,6 @@ class BMP280 {
 			// osrs_p = pressureOversampling
 			// mode = mode
 			writeUint8(BMP280Register::Control, ((uint8_t) temperatureOversampling << 5) | ((uint8_t) pressureOversampling << 2) | (uint8_t) mode);
-
-			delay(100);
 		}
 
 		void readCalibrationData() {
@@ -138,24 +137,26 @@ class BMP280 {
 
 		// These bitchy compensation formulas has been taken from datasheet
 		// Don't see any reason to touch them))0
-		// See https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
+		// ...
+		// What are those var var lmao
 		float readTemperature() {
 			int32_t adc_T = readInt24BE(BMP280Register::TemperatureData);
 			// Seems like this shit expects only last 20 bits from 24
 			adc_T >>= 4;
 
 			float var1, var2, T;
-			var1 = (((float)adc_T)/16384.0f - ((float)_calibrationDigT1)/1024.0f) * ((float)_calibrationDigT2);
-			var2 = ((((float)adc_T)/131072.0f - ((float)_calibrationDigT1)/8192.0f) *
-				(((float)adc_T)/131072.0f - ((float) _calibrationDigT1)/8192.0f)) * ((float)_calibrationDigT3);
-			_tFine = (int32_t)(var1 + var2);
+			var1 = (((float) adc_T) / 16384.0f - ((float) _calibrationDigT1) / 1024.0f) * ((float) _calibrationDigT2);
+			var2 = ((((float) adc_T) / 131072.0f - ((float) _calibrationDigT1) / 8192.0f) *
+				(((float) adc_T) / 131072.0f - ((float) _calibrationDigT1) / 8192.0f)) * ((float) _calibrationDigT3);
+
+			_tFine = (int32_t) (var1 + var2);
 			T = (var1 + var2) / 5120.0f;
 
 			return T;
 		}
 
 		float readPressure() {
-			// To process raw pressure data, we need previously read temperature
+			// To process raw pressure data, we need read temperature before at least once to update "tFine"
 			if (_tFine == -0xFFFF)
 				readTemperature();
 
@@ -164,15 +165,16 @@ class BMP280 {
 
 			float var1, var2, p;
 			var1 = ((float)_tFine / 2.0f) - 64000.0f;
-			var2 = var1 * var1 * ((float)_calibrationDigP6) / 32768.0f;
-			var2 = var2 + var1 * ((float)_calibrationDigP5) * 2.0f;
-			var2 = (var2/4.0f)+(((float)_calibrationDigP4) * 65536.0f);
-			var1 = (((float)_calibrationDigP3) * var1 * var1 / 524288.0f + ((float)_calibrationDigP2) * var1) / 524288.0f;
-			var1 = (1.0f + var1 / 32768.0f)*((float)_calibrationDigP1);
+			var2 = var1 * var1 * ((float) _calibrationDigP6) / 32768.0f;
+			var2 = var2 + var1 * ((float) _calibrationDigP5) * 2.0f;
+			var2 = (var2/4.0f)+(((float) _calibrationDigP4) * 65536.0f);
+			var1 = (((float)_calibrationDigP3) * var1 * var1 / 524288.0f + ((float) _calibrationDigP2) * var1) / 524288.0f;
+			var1 = (1.0f + var1 / 32768.0f) * ((float) _calibrationDigP1);
+
+			// avoid exception caused by division by zero
 			if (var1 == 0.0f)
-			{
-				return 0; // avoid exception caused by division by zero
-			}
+				return 0;
+
 			p = 1048576.0f - (float) adc_P;
 			p = (p - (var2 / 4096.0f)) * 6250.0f / var1;
 			var1 = ((float)_calibrationDigP9) * p * p / 2147483648.0f;
@@ -240,6 +242,13 @@ class BMP280 {
 
 			setChipSelect(HIGH);
 			SPI.endTransaction();
+		}
+
+		uint16_t readUint8(BMP280Register reg) {
+			uint8_t buffer[1];
+			writeAndRead(buffer, reg, 1);
+
+			return buffer[0];
 		}
 
 		uint16_t readUint16LE(BMP280Register reg) {
