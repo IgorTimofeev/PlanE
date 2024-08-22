@@ -1,16 +1,14 @@
 #include <Arduino.h>
-#include "gy91.h"
+#include "aircraft.h"
 
-GY91 gy91;
+Aircraft aircraft;
 
 void setup() {
 	Serial.begin(115200);
 
-	gy91.begin();
+	aircraft.begin();
 }
 
 void loop() {
-	gy91.tick();
-
-	delay(1000);
+	aircraft.tick();
 }
