@@ -18,12 +18,6 @@ class AHRS {
 		void begin() {
 			Serial.println("Starting BMP280");
 
-			if (!_bmp.begin()) {
-				Serial.println("BMP280 setup failed");
-
-				while (1);
-			}
-
 //			_bmp.setSampling(
 //				Adafruit_BMP280::MODE_NORMAL,
 //				Adafruit_BMP280::SAMPLING_X2,
@@ -32,12 +26,12 @@ class AHRS {
 //				Adafruit_BMP280::STANDBY_MS_125
 //			);
 
-			_bmp.configure(
-				BMP280Mode::NORMAL,
-				BMP280Sampling::X2,
-				BMP280Sampling::X16,
+			_bmp.begin(
+				BMP280Mode::Normal,
+				BMP280Oversampling::X2,
+				BMP280Oversampling::X16,
 				BMP280Filter::X16,
-				BMP280StandbyDuration::MS_125
+				BMP280StandbyDuration::Ms125
 			);
 
 //
