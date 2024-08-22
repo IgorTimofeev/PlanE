@@ -12,5 +12,5 @@ void setup() {
 void loop() {
 	gy91.tick();
 
-	delay(100);
+	delay(1000);
 }
