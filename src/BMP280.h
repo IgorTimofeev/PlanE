@@ -220,15 +220,14 @@ class BMP280 {
 			// Seems like this shit expects only last 20 bits from 24
 			adc_T >>= 4;
 
-			int32_t var1, var2, T;
+			double var1, var2, T;
+			var1 = (((double)adc_T)/16384.0 - ((double)_calibrationData.dig_T1)/1024.0) * ((double)_calibrationData.dig_T2);
+			var2 = ((((double)adc_T)/131072.0 - ((double)_calibrationData.dig_T1)/8192.0) *
+				(((double)adc_T)/131072.0 - ((double) _calibrationData.dig_T1)/8192.0)) * ((double)_calibrationData.dig_T3);
+			t_fine = (int32_t)(var1 + var2);
+			T = (var1 + var2) / 5120.0;
+			return T;
 
-			var1 = ((((adc_T>>3) - ((int32_t) _calibrationData.dig_T1<<1))) * ((int32_t) _calibrationData.dig_T2)) >> 11;
-			var2 = (((((adc_T>>4) - ((int32_t) _calibrationData.dig_T1)) * ((adc_T>>4) - ((int32_t) _calibrationData.dig_T1))) >> 12) *
-				((int32_t) _calibrationData.dig_T3)) >> 14;
-			t_fine = var1 + var2;
-			T = (t_fine * 5 + 128) >> 8;
-
-			return float(T) / 100.f;
 		}
 
 		double readPressure() {
@@ -238,32 +237,23 @@ class BMP280 {
 			int32_t adc_P = readInt24BE(BMP280Register::PRESSURE_DATA);
 			adc_P >>= 4;
 
-			int32_t var1, var2;
-			uint32_t p;
-			var1 = (((int32_t)t_fine)>>1) - (int32_t)64000;
-			var2 = (((var1>>2) * (var1>>2)) >> 11 ) * ((int32_t)_calibrationData.dig_P6);
-			var2 = var2 + ((var1*((int32_t)_calibrationData.dig_P5))<<1);
-			var2 = (var2>>2)+(((int32_t)_calibrationData.dig_P4)<<16);
-			var1 = (((_calibrationData.dig_P3 * (((var1>>2) * (var1>>2)) >> 13 )) >> 3) + ((((int32_t)_calibrationData.dig_P2) * var1)>>1))>>18;
-			var1 =((((32768+var1))*((int32_t)_calibrationData.dig_P1))>>15);
-			if (var1 == 0)
+			double var1, var2, p;
+			var1 = ((double)t_fine/2.0) - 64000.0;
+			var2 = var1 * var1 * ((double)_calibrationData.dig_P6) / 32768.0;
+			var2 = var2 + var1 * ((double)_calibrationData.dig_P5) * 2.0;
+			var2 = (var2/4.0)+(((double)_calibrationData.dig_P4) * 65536.0);
+			var1 = (((double)_calibrationData.dig_P3) * var1 * var1 / 524288.0 + ((double)_calibrationData.dig_P2) * var1) / 524288.0;
+			var1 = (1.0 + var1 / 32768.0)*((double)_calibrationData.dig_P1);
+			if (var1 == 0.0)
 			{
 				return 0; // avoid exception caused by division by zero
 			}
-			p = (((uint32_t)(((int32_t)1048576)-adc_P)-(var2>>12)))*3125;
-			if (p < 0x80000000)
-			{
-				p = (p << 1) / ((uint32_t)var1);
-			}
-			else
-			{
-				p = (p / (uint32_t)var1) * 2;
-			}
-			var1 = (((int32_t)_calibrationData.dig_P9) * ((int32_t)(((p>>3) * (p>>3))>>13)))>>12;
-			var2 = (((int32_t)(p>>2)) * ((int32_t)_calibrationData.dig_P8))>>13;
-			p = (uint32_t)((int32_t)p + ((var1 + var2 + _calibrationData.dig_P7) >> 4));
-
-			return float(p);
+			p = 1048576.0 - (double) adc_P;
+			p = (p - (var2 / 4096.0)) * 6250.0 / var1;
+			var1 = ((double)_calibrationData.dig_P9) * p * p / 2147483648.0;
+			var2 = p * ((double)_calibrationData.dig_P8) / 32768.0;
+			p = p + (var1 + var2 + ((double)_calibrationData.dig_P7)) / 16.0;
+			return p;
 		}
 
 		float readAltitude(float seaLevelhPa) {
