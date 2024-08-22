@@ -215,58 +215,55 @@ class BMP280 {
 
 		// These bitchy compensation formulas taken from datasheet
 		// See https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
-		float readTemperature() {
-			int32_t var1, var2;
-
+		double readTemperature() {
 			int32_t adc_T = readInt24BE(BMP280Register::TEMPERATURE_DATA);
-
+			// Seems like this shit expects only last 20 bits from 24
 			adc_T >>= 4;
 
-			var1 = ((((adc_T >> 3) - ((int32_t) _calibrationData.dig_T1 << 1))) *
-					((int32_t) _calibrationData.dig_T2)) >>
-													 11;
+			int32_t var1, var2, T;
 
-			var2 = (((((adc_T >> 4) - ((int32_t) _calibrationData.dig_T1)) *
-					  ((adc_T >> 4) - ((int32_t) _calibrationData.dig_T1))) >>
-																		12) *
-					((int32_t) _calibrationData.dig_T3)) >>
-													 14;
-
+			var1 = ((((adc_T>>3) - ((int32_t) _calibrationData.dig_T1<<1))) * ((int32_t) _calibrationData.dig_T2)) >> 11;
+			var2 = (((((adc_T>>4) - ((int32_t) _calibrationData.dig_T1)) * ((adc_T>>4) - ((int32_t) _calibrationData.dig_T1))) >> 12) *
+				((int32_t) _calibrationData.dig_T3)) >> 14;
 			t_fine = var1 + var2;
+			T = (t_fine * 5 + 128) >> 8;
 
-			float T = (t_fine * 5 + 128) >> 8;
-			return T / 100;
+			return float(T) / 100.f;
 		}
 
-		float readPressure() {
-			int64_t var1, var2, p;
-
-			// Must be done first to get the t_fine variable set up
-			readTemperature();
+		double readPressure() {
+			if (t_fine == -0xFFFF)
+				readTemperature();
 
 			int32_t adc_P = readInt24BE(BMP280Register::PRESSURE_DATA);
-
 			adc_P >>= 4;
 
-			var1 = ((int64_t)t_fine) - 128000;
-			var2 = var1 * var1 * (int64_t)_calibrationData.dig_P6;
-			var2 = var2 + ((var1 * (int64_t)_calibrationData.dig_P5) << 17);
-			var2 = var2 + (((int64_t)_calibrationData.dig_P4) << 35);
-			var1 = ((var1 * var1 * (int64_t)_calibrationData.dig_P3) >> 8) +
-				   ((var1 * (int64_t)_calibrationData.dig_P2) << 12);
-			var1 =
-				(((((int64_t)1) << 47) + var1)) * ((int64_t)_calibrationData.dig_P1) >> 33;
-
-			if (var1 == 0) {
+			int32_t var1, var2;
+			uint32_t p;
+			var1 = (((int32_t)t_fine)>>1) - (int32_t)64000;
+			var2 = (((var1>>2) * (var1>>2)) >> 11 ) * ((int32_t)_calibrationData.dig_P6);
+			var2 = var2 + ((var1*((int32_t)_calibrationData.dig_P5))<<1);
+			var2 = (var2>>2)+(((int32_t)_calibrationData.dig_P4)<<16);
+			var1 = (((_calibrationData.dig_P3 * (((var1>>2) * (var1>>2)) >> 13 )) >> 3) + ((((int32_t)_calibrationData.dig_P2) * var1)>>1))>>18;
+			var1 =((((32768+var1))*((int32_t)_calibrationData.dig_P1))>>15);
+			if (var1 == 0)
+			{
 				return 0; // avoid exception caused by division by zero
 			}
-			p = 1048576 - adc_P;
-			p = (((p << 31) - var2) * 3125) / var1;
-			var1 = (((int64_t)_calibrationData.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
-			var2 = (((int64_t)_calibrationData.dig_P8) * p) >> 19;
+			p = (((uint32_t)(((int32_t)1048576)-adc_P)-(var2>>12)))*3125;
+			if (p < 0x80000000)
+			{
+				p = (p << 1) / ((uint32_t)var1);
+			}
+			else
+			{
+				p = (p / (uint32_t)var1) * 2;
+			}
+			var1 = (((int32_t)_calibrationData.dig_P9) * ((int32_t)(((p>>3) * (p>>3))>>13)))>>12;
+			var2 = (((int32_t)(p>>2)) * ((int32_t)_calibrationData.dig_P8))>>13;
+			p = (uint32_t)((int32_t)p + ((var1 + var2 + _calibrationData.dig_P7) >> 4));
 
-			p = ((p + var1 + var2) >> 8) + (((int64_t)_calibrationData.dig_P7) << 4);
-			return (float)p / 256;
+			return float(p);
 		}
 
 		float readAltitude(float seaLevelhPa) {
@@ -279,7 +276,7 @@ class BMP280 {
 		uint8_t _csPin;
 		SPISettings _SPISettings = SPISettings(1000000, SPI_MSBFIRST, SPI_MODE0);
 		CalibrationData _calibrationData = CalibrationData();
-		int32_t t_fine = 0;
+		int32_t t_fine = -0xFFFF;
 
 		void setChipSelect(uint8_t value) const {
 			digitalWrite(_csPin, value);
