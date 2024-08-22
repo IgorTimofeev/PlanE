@@ -215,51 +215,44 @@ class BMP280 {
 
 		// These bitchy compensation formulas taken from datasheet
 		// See https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
-		double readTemperature() {
+		float readTemperature() {
 			int32_t adc_T = readInt24BE(BMP280Register::TEMPERATURE_DATA);
 			// Seems like this shit expects only last 20 bits from 24
 			adc_T >>= 4;
 
-			double var1, var2, T;
-			var1 = (((double)adc_T)/16384.0 - ((double)_calibrationData.dig_T1)/1024.0) * ((double)_calibrationData.dig_T2);
-			var2 = ((((double)adc_T)/131072.0 - ((double)_calibrationData.dig_T1)/8192.0) *
-				(((double)adc_T)/131072.0 - ((double) _calibrationData.dig_T1)/8192.0)) * ((double)_calibrationData.dig_T3);
+			float var1, var2, T;
+			var1 = (((float)adc_T)/16384.0f - ((float)_calibrationData.dig_T1)/1024.0f) * ((float)_calibrationData.dig_T2);
+			var2 = ((((float)adc_T)/131072.0f - ((float)_calibrationData.dig_T1)/8192.0f) *
+				(((float)adc_T)/131072.0f - ((float) _calibrationData.dig_T1)/8192.0f)) * ((float)_calibrationData.dig_T3);
 			t_fine = (int32_t)(var1 + var2);
-			T = (var1 + var2) / 5120.0;
+			T = (var1 + var2) / 5120.0f;
 			return T;
-
 		}
 
-		double readPressure() {
+		float readPressure() {
 			if (t_fine == -0xFFFF)
 				readTemperature();
 
 			int32_t adc_P = readInt24BE(BMP280Register::PRESSURE_DATA);
 			adc_P >>= 4;
 
-			double var1, var2, p;
-			var1 = ((double)t_fine/2.0) - 64000.0;
-			var2 = var1 * var1 * ((double)_calibrationData.dig_P6) / 32768.0;
-			var2 = var2 + var1 * ((double)_calibrationData.dig_P5) * 2.0;
-			var2 = (var2/4.0)+(((double)_calibrationData.dig_P4) * 65536.0);
-			var1 = (((double)_calibrationData.dig_P3) * var1 * var1 / 524288.0 + ((double)_calibrationData.dig_P2) * var1) / 524288.0;
-			var1 = (1.0 + var1 / 32768.0)*((double)_calibrationData.dig_P1);
-			if (var1 == 0.0)
+			float var1, var2, p;
+			var1 = ((float)t_fine/2.0f) - 64000.0f;
+			var2 = var1 * var1 * ((float)_calibrationData.dig_P6) / 32768.0f;
+			var2 = var2 + var1 * ((float)_calibrationData.dig_P5) * 2.0f;
+			var2 = (var2/4.0f)+(((float)_calibrationData.dig_P4) * 65536.0f);
+			var1 = (((float)_calibrationData.dig_P3) * var1 * var1 / 524288.0f + ((float)_calibrationData.dig_P2) * var1) / 524288.0f;
+			var1 = (1.0f + var1 / 32768.0f)*((float)_calibrationData.dig_P1);
+			if (var1 == 0.0f)
 			{
 				return 0; // avoid exception caused by division by zero
 			}
-			p = 1048576.0 - (double) adc_P;
-			p = (p - (var2 / 4096.0)) * 6250.0 / var1;
-			var1 = ((double)_calibrationData.dig_P9) * p * p / 2147483648.0;
-			var2 = p * ((double)_calibrationData.dig_P8) / 32768.0;
-			p = p + (var1 + var2 + ((double)_calibrationData.dig_P7)) / 16.0;
+			p = 1048576.0f - (float) adc_P;
+			p = (p - (var2 / 4096.0f)) * 6250.0f / var1;
+			var1 = ((float)_calibrationData.dig_P9) * p * p / 2147483648.0f;
+			var2 = p * ((float)_calibrationData.dig_P8) / 32768.0f;
+			p = p + (var1 + var2 + ((float)_calibrationData.dig_P7)) / 16.0f;
 			return p;
-		}
-
-		float readAltitude(float seaLevelhPa) {
-			float pressure = readPressure() / 100.0f;
-
-			return 44330.0f * (1.0f - powf(pressure / seaLevelhPa, 0.1903f));
 		}
 
 	private:

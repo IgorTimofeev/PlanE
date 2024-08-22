@@ -111,13 +111,18 @@ class AHRS {
 			Serial.print(_bmp.readTemperature());
 			Serial.println(" *C");
 
+			auto pressure = _bmp.readPressure();
 			Serial.print("Pressure: ");
-			Serial.print(_bmp.readPressure());
+			Serial.print(pressure);
 			Serial.println(" Pa");
 
 			Serial.print("Altitude: ");
-			Serial.print(_bmp.readAltitude(1022));
+			Serial.print(pressureToAltitude(pressure, 102200));
 			Serial.println(" m");
+		}
+
+		static float pressureToAltitude(float pressureInPa, float seaLevelInPa) {
+			return 44330.0f * (1.0f - powf(pressureInPa / seaLevelInPa, 0.1903f));
 		}
 
 	private:
