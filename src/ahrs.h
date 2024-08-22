@@ -116,7 +116,7 @@ class AHRS {
 		}
 
 		static float pressureToAltitude(float pressureInPa, float seaLevelInPa) {
-			return 44330.0f * (1.0f - powf(pressureInPa / seaLevelInPa, 0.1903f));
+			return 44330.0f * (1.0f - powf(pressureInPa / seaLevelInPa, 1.0f / 5.255f));
 		}
 
 	private:
