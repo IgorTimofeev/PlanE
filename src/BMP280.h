@@ -155,10 +155,6 @@ class BMP280 {
 			return true;
 		}
 
-		void readGovno() {
-
-		}
-
 		void readCalibrationData() {
 			_calibrationData.dig_T1 = readUint16LE(BMP280Register::DIG_T1);
 			_calibrationData.dig_T2 = readInt16LE(BMP280Register::DIG_T2);
@@ -191,9 +187,9 @@ class BMP280 {
 		}
 
 		void configure(
-			BMP280Mode mode = BMP280Mode::SLEEP,
-			BMP280Sampling tempSampling = BMP280Sampling::NONE,
-			BMP280Sampling pressSampling = BMP280Sampling::NONE,
+			BMP280Mode mode = BMP280Mode::NORMAL,
+			BMP280Sampling tempSampling = BMP280Sampling::X16,
+			BMP280Sampling pressSampling = BMP280Sampling::X16,
 			BMP280Filter filter = BMP280Filter::OFF,
 			BMP280StandbyDuration duration = BMP280StandbyDuration::MS_1
 		) {
@@ -206,43 +202,71 @@ class BMP280 {
 			configReg.filter =  (unsigned int) filter;
 			configReg.t_sb =  (unsigned int) duration;
 
-			writeUint8(BMP280Register::CONFIG, configReg.get());
-			writeUint8(BMP280Register::CONTROL, measReg.get());
+			auto govno1 = configReg.get();
+			auto govno2 = measReg.get();
+
+			Serial.println("------------- Govno.get() ---------------");
+			Serial.println(govno1);
+			Serial.println(govno2);
+
+			writeUint8(BMP280Register::CONFIG, govno1);
+			writeUint8(BMP280Register::CONTROL,govno2);
 		}
 
-		double readTemperature() {
-			auto adc_T = readInt24BE(BMP280Register::TEMPERATURE_DATA);
+		// These bitchy compensation formulas taken from datasheet
+		// See https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
+		float readTemperature() {
+			int32_t var1, var2;
 
-			double var1, var2, T;
-			var1 = (((double)adc_T)/16384.0 - ((double) _calibrationData.dig_T1)/1024.0) * ((double) _calibrationData.dig_T2);
-			var2 = ((((double)adc_T)/131072.0 - ((double) _calibrationData.dig_T1)/8192.0) *
-				(((double)adc_T)/131072.0 - ((double)  _calibrationData.dig_T1)/8192.0)) * ((double) _calibrationData.dig_T3);
-			t_fine = (int32_t )(var1 + var2);
-			T = (var1 + var2) / 5120.0;
-			return T;
+			int32_t adc_T = readInt24BE(BMP280Register::TEMPERATURE_DATA);
+
+			adc_T >>= 4;
+
+			var1 = ((((adc_T >> 3) - ((int32_t) _calibrationData.dig_T1 << 1))) *
+					((int32_t) _calibrationData.dig_T2)) >>
+													 11;
+
+			var2 = (((((adc_T >> 4) - ((int32_t) _calibrationData.dig_T1)) *
+					  ((adc_T >> 4) - ((int32_t) _calibrationData.dig_T1))) >>
+																		12) *
+					((int32_t) _calibrationData.dig_T3)) >>
+													 14;
+
+			t_fine = var1 + var2;
+
+			float T = (t_fine * 5 + 128) >> 8;
+			return T / 100;
 		}
 
-		double readPressure() {
-			auto adc_P = readInt24BE(BMP280Register::PRESSURE_DATA);
+		float readPressure() {
+			int64_t var1, var2, p;
 
-			double var1, var2, p;
-			var1 = ((double)t_fine/2.0) - 64000.0;
-			var2 = var1 * var1 * ((double) _calibrationData.dig_P6) / 32768.0;
-			var2 = var2 + var1 * ((double) _calibrationData.dig_P5) * 2.0;
-			var2 = (var2/4.0)+(((double) _calibrationData.dig_P4) * 65536.0);
-			var1 = (((double) _calibrationData.dig_P3) * var1 * var1 / 524288.0 + ((double) _calibrationData.dig_P2) * var1) / 524288.0;
-			var1 = (1.0 + var1 / 32768.0)*((double) _calibrationData.dig_P1);
-			if (var1 == 0.0)
-			{
+			// Must be done first to get the t_fine variable set up
+			readTemperature();
+
+			int32_t adc_P = readInt24BE(BMP280Register::PRESSURE_DATA);
+
+			adc_P >>= 4;
+
+			var1 = ((int64_t)t_fine) - 128000;
+			var2 = var1 * var1 * (int64_t)_calibrationData.dig_P6;
+			var2 = var2 + ((var1 * (int64_t)_calibrationData.dig_P5) << 17);
+			var2 = var2 + (((int64_t)_calibrationData.dig_P4) << 35);
+			var1 = ((var1 * var1 * (int64_t)_calibrationData.dig_P3) >> 8) +
+				   ((var1 * (int64_t)_calibrationData.dig_P2) << 12);
+			var1 =
+				(((((int64_t)1) << 47) + var1)) * ((int64_t)_calibrationData.dig_P1) >> 33;
+
+			if (var1 == 0) {
 				return 0; // avoid exception caused by division by zero
 			}
-			p = 1048576.0 - (double) adc_P;
-			p = (p - (var2 / 4096.0)) * 6250.0 / var1;
-			var1 = ((double) _calibrationData.dig_P9) * p * p / 2147483648.0;
-			var2 = p * ((double) _calibrationData.dig_P8) / 32768.0;
-			p = p + (var1 + var2 + ((double) _calibrationData.dig_P7)) / 16.0;
-			return p;
+			p = 1048576 - adc_P;
+			p = (((p << 31) - var2) * 3125) / var1;
+			var1 = (((int64_t)_calibrationData.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
+			var2 = (((int64_t)_calibrationData.dig_P8) * p) >> 19;
 
+			p = ((p + var1 + var2) >> 8) + (((int64_t)_calibrationData.dig_P7) << 4);
+			return (float)p / 256;
 		}
 
 		float readAltitude(float seaLevelhPa) {
@@ -329,10 +353,14 @@ class BMP280 {
 		}
 
 		// 32 BE
-		int32_t readInt24BE(BMP280Register reg) {
+		uint32_t readUInt24BE(BMP280Register reg) {
 			uint8_t buffer[3];
 			writeThenRead(buffer, reg, 3);
 
-			return int32_t(buffer[2] << 16) | int32_t(buffer[1]) << 8 | int32_t(buffer[0]);
+			return uint32_t(buffer[0] << 16) | uint32_t(buffer[1]) << 8 | uint32_t(buffer[2]);
+		}
+
+		int32_t readInt24BE(BMP280Register reg) {
+			return (int32_t) readUInt24BE(reg);
 		}
 };

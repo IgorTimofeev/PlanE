@@ -9,6 +9,7 @@
 #include "quaternion_filter.h"
 #include "MPU9250.h"
 #include "BMP280.h"
+#include "Adafruit_BMP280.h"
 
 class AHRS {
 	public:
@@ -23,14 +24,22 @@ class AHRS {
 				while (1);
 			}
 
+//			_bmp.setSampling(
+//				Adafruit_BMP280::MODE_NORMAL,
+//				Adafruit_BMP280::SAMPLING_X2,
+//				Adafruit_BMP280::SAMPLING_X16,
+//				Adafruit_BMP280::FILTER_X16,
+//				Adafruit_BMP280::STANDBY_MS_125
+//			);
+
 			_bmp.configure(
 				BMP280Mode::NORMAL,
 				BMP280Sampling::X2,
 				BMP280Sampling::X16,
 				BMP280Filter::X16,
-				BMP280StandbyDuration::MS_500
+				BMP280StandbyDuration::MS_125
 			);
-//
+
 //
 //			Serial.println("Starting MPU9250");
 //
@@ -98,15 +107,15 @@ class AHRS {
 //
 			Serial.println("-------------------------- BMP280 --------------------------");
 
-			Serial.print("[BMP] Temperature: ");
+			Serial.print("Temperature: ");
 			Serial.print(_bmp.readTemperature());
 			Serial.println(" *C");
 
-			Serial.print("[BMP] Pressure: ");
+			Serial.print("Pressure: ");
 			Serial.print(_bmp.readPressure());
 			Serial.println(" Pa");
 
-			Serial.print("[BMP] Altitude: ");
+			Serial.print("Altitude: ");
 			Serial.print(_bmp.readAltitude(1022));
 			Serial.println(" m");
 		}
