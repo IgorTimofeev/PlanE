@@ -29,7 +29,3 @@ AHRS &Aircraft::getAHRS() {
 Transceiver &Aircraft::getTransceiver() {
 	return _transceiver;
 }
-
-SX1262 &Aircraft::getRadio() {
-	return _radio;
-}

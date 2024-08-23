@@ -5,7 +5,7 @@
 #endif
 
 #include "Arduino.h"
-#include "RadioLib.h"
+#include <Ra01S.h>
 
 class Aircraft;
 
@@ -29,10 +29,9 @@ class Transceiver {
 		void tick(Aircraft& aircraft);
 
 	private:
-		SX1262 _radio = new Module(
-			32,
-			RADIOLIB_NC,
-			33,
-			25
+		SX126x _radio = SX126x(
+			32,               //Port-Pin Output: SPI select
+			33,               //Port-Pin Output: Reset
+			25                //Port-Pin Input:  Busy
 		);
 };
