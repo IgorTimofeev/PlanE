@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include "aircraft.h"
-#include "SPI.h"
 
 Aircraft aircraft;
 
