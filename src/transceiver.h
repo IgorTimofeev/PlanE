@@ -10,6 +10,8 @@
 class Aircraft;
 
 struct GovnoPacket {
+	uint32_t signature;
+
 	float pitch;
 	float roll;
 	float yaw;
