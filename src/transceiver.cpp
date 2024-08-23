@@ -65,9 +65,9 @@ void Transceiver::tick(Aircraft &aircraft) {
 	Serial.println("[SX1262] Sending packet");
 
 	if (_radio.Send((uint8_t*) &packet, sizeof(GovnoPacket), SX126x_TXMODE_SYNC)) {
-		// the packet was successfully transmitted
-		Serial.println("[SX1262] success!");
-	} else {
+
+	}
+	else {
 		// some other error occurred
 		Serial.print("[SX1262] failed, code ");
 	}
