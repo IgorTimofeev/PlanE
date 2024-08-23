@@ -16,13 +16,6 @@ class AHRS {
 		AHRS() = default;
 
 		void begin() {
-			// Resetting CS pins just in case
-			pinMode(26, OUTPUT);
-			digitalWrite(26, HIGH);
-
-			pinMode(27, OUTPUT);
-			digitalWrite(27, HIGH);
-
 			Serial.println("Starting MPU9250");
 
 			// start communication with IMU
