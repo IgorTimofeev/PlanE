@@ -104,7 +104,7 @@ class AHRS {
 			Serial.println(" Pa");
 
 			Serial.print("Altitude: ");
-			Serial.print(pressureToAltitude(pressure, 102200));
+			Serial.print(pressureToAltitude(pressure, 101058));
 			Serial.println(" m");
 		}
 

@@ -6,11 +6,12 @@ Aircraft aircraft;
 
 void setup() {
 	Serial.begin(115200);
-	SPI.begin();
 
 	aircraft.begin();
 }
 
 void loop() {
 	aircraft.tick();
+
+	delay(1000);
 }
