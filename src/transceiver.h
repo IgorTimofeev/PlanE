@@ -6,22 +6,9 @@
 
 #include "Arduino.h"
 #include <Ra01S.h>
+#include "AESLib.h"
 
 class Aircraft;
-
-struct GovnoPacket {
-	uint32_t signature;
-
-	float pitch;
-	float roll;
-	float yaw;
-
-	float temperature;
-	float pressure;
-
-	float qnh;
-	float altitude;
-};
 
 class Transceiver {
 	public:
@@ -29,9 +16,10 @@ class Transceiver {
 		void tick(Aircraft& aircraft);
 
 	private:
-		SX126x _radio = SX126x(
-			32,               //Port-Pin Output: SPI select
-			33,               //Port-Pin Output: Reset
-			25                //Port-Pin Input:  Busy
-		);
+		SX126x _radio = SX126x(32, 33, 25);
+
+		AESLib _AESLib = AESLib();
+		const uint8_t _AESKey[16] = { 0x02, 0xEB, 0x46, 0x45, 0x96, 0xB0, 0xD6, 0xB9, 0x7C, 0x34, 0xBE, 0x77, 0x75, 0xF2, 0xBE, 0x1B };
+		uint8_t _AESIV[N_BLOCK] = { 0x17, 0x5D, 0x25, 0x2A, 0xFD, 0x72, 0x1E, 0x01, 0x02, 0x60, 0x88, 0x92, 0x9A, 0x9B, 0x2A, 0xA9 };
+		uint8_t _AESBuffer[255];
 };
