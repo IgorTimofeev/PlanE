@@ -139,8 +139,6 @@ void Transceiver::tick(Aircraft &aircraft) {
 
 		switch (decryptedPacketType) {
 			case PacketType::AHRS:
-				auto eblo = &_AESBuffer;
-
 				auto decryptedPacket = (AHRSPacket*) ((uint8_t*) &_AESBuffer + typeLength);
 
 				decryptedPacket->print();
