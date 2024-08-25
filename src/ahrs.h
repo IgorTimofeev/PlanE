@@ -38,7 +38,7 @@ class AHRS {
 		float _yaw = 0;
 		float _temperature = 0;
 		float _pressure = 0;
-		float _altutude = 0;
+		float _altitude = 0;
 
 		float _qnh = 101458;
 };

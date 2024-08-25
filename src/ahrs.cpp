@@ -86,9 +86,9 @@ void AHRS::tick(Aircraft &aircraft) {
 	Serial.print(_pressure);
 	Serial.println(" Pa");
 
-	_altutude = pressureToAltitude(_pressure, _qnh);
+	_altitude = pressureToAltitude(_pressure, _qnh);
 	Serial.print("[BMP280] Altitude: ");
-	Serial.print(_altutude);
+	Serial.print(_altitude);
 	Serial.println(" m");
 }
 
@@ -117,7 +117,7 @@ float AHRS::getPressure() {
 }
 
 float AHRS::getAltitude() {
-	return _altutude;
+	return _altitude;
 }
 
 float AHRS::getQnh() const {
