@@ -76,17 +76,6 @@ void Transceiver::tick(Aircraft &aircraft) {
 	uint16_t prefixLength = sizeof(packet.header);
 	uint16_t typeLength = sizeof(packet.type);
 
-//	Serial.println("Bytes: ");
-//
-//	auto govo = (uint8_t*) &packet + prefixLength;
-//
-//	for (uint16_t i = 0; i < packetLength - prefixLength; i++) {
-//		Serial.print((uint8_t)*(govo + i));
-//		Serial.print(" ");
-//	}
-//
-//	Serial.println();
-
 	// Copying header
 	mempcpy(&_AESBuffer, &packet, prefixLength);
 
