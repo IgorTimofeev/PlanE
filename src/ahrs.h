@@ -19,15 +19,21 @@ class AHRS {
 
 		static float pressureToAltitude(float pressureInPa, float seaLevelInPa);
 
-		float getPitch();
-		float getRoll();
-		float getYaw();
-		float getTemperature();
-		float getPressure();
-		float getAltitude();
+		float getPitch() const;
+		float getRoll() const;
+		float getYaw() const;
+		float getTemperature() const;
+		float getPressure() const;
+		float getAltitude() const;
 
-		float getQnh() const;
-		void setQnh(float qnh);
+		float getQnhPa() const;
+		void setQnhPa(float value);
+
+		float getQnhMmHg() const;
+		void setQnhMmHg(float value);
+
+		float getQnhInHg() const;
+		void setQnhInHg(float value);
 
 	private:
 		MPU9250 _imu = MPU9250(Wire, 0x68);
@@ -40,5 +46,5 @@ class AHRS {
 		float _pressure = 0;
 		float _altitude = 0;
 
-		float _qnh = 101458;
+		float _qnh = 1013;
 };

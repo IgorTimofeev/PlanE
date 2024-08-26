@@ -5,7 +5,7 @@
 void Transceiver::begin() {
 	Serial.println("[SX1262] Initializing");
 
-	auto state = _radio.begin(
+	auto state = _sx1262.begin(
 		// Hz  center frequency
 		915000000,
 		// dBm tx output power
@@ -23,7 +23,7 @@ void Transceiver::begin() {
 			delay(100);
 	}
 
-	_radio.LoRaConfig(
+	_sx1262.LoRaConfig(
 		// spreading factor [SF5..SF12]
 		7,
 		// bandwidth
@@ -58,94 +58,116 @@ void Transceiver::begin() {
 void Transceiver::tick(Aircraft &aircraft) {
 	auto& ahrs = aircraft.getAHRS();
 
-	const uint32_t packetHeader = 0x506C416E;
-
-	Packet<AHRSPacket> packet(
-		packetHeader,
-		PacketType::AHRS,
-		AHRSPacket {
+	send(
+		PacketType::AircraftAHRS,
+		AircraftAHRSPacket {
 			.pitch = ahrs.getPitch(),
 			.roll = ahrs.getRoll(),
 			.yaw = ahrs.getYaw(),
 
 			.temperature = ahrs.getTemperature(),
 			.pressure = ahrs.getPressure(),
-
-			.qnh = ahrs.getQnh(),
-			.altitude = ahrs.getAltitude()
 		}
 	);
 
+	receive(aircraft);
+}
+
+template<typename T>
+void Transceiver::send(PacketType packetType, const T& packet) {
 	Serial.println("[Transceiver] Encrypting packet");
 
-	uint16_t packetLength = sizeof(packet);
-	uint16_t headerLength = sizeof(packet.header);
-	uint16_t typeLength = sizeof(packet.type);
+	auto wrapper = PacketTypeWrapper<T>(packetType, packet);
 
-	auto bodyLength = packetLength - headerLength;
-	auto encryptedLength = bodyLength + 16 - (bodyLength % 16);
+	uint8_t wrapperLength = sizeof(wrapper);
+	uint8_t encryptedWrapperLength = wrapperLength + 16 - (wrapperLength % 16);
+
+	auto header = Settings::Transceiver::packetHeader;
+	uint8_t headerLength = sizeof(header);
+	uint8_t totalLength = wrapperLength + headerLength;
 
 	// Copying header
-	mempcpy(&_AESBuffer, &packet, headerLength);
+	mempcpy(&_AESBuffer, &header, headerLength);
 
 	// Encrypting body
 	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
 	esp_aes_crypt_cbc(
 		&_AESContext,
 		ESP_AES_ENCRYPT,
-		encryptedLength,
+		encryptedWrapperLength,
 		_AESIVCopy,
-		(uint8_t*) &packet + headerLength,
+		(uint8_t*) &wrapper,
 		(uint8_t*) &_AESBuffer + headerLength
 	);
 
-	// Twemp, for sdimulation
-	uint8_t receiveBuffer[255];
-	uint16_t receivedPacketLength = headerLength + encryptedLength;
-	memcpy(&receiveBuffer, &_AESBuffer, receivedPacketLength);
+	Serial.println("[SX1262] Sending packet");
 
-	// Checking if header is correct
-	if (((uint32_t*) &receiveBuffer)[0] == packetHeader) {
-		Serial.println("[Transceiver] Valid header, decrypting packet");
+	if (_sx1262.Send((uint8_t*) &_AESBuffer, totalLength, SX126x_TXMODE_SYNC)) {
 
-		encryptedLength = receivedPacketLength - headerLength;
-		encryptedLength = encryptedLength + 16 - (encryptedLength % 16);
-
-		memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
-		esp_aes_crypt_cbc(
-			&_AESContext,
-			ESP_AES_DECRYPT,
-			encryptedLength,
-			_AESIVCopy,
-			(uint8_t*) &receiveBuffer + headerLength,
-			_AESBuffer
-		);
-
-		auto decryptedPacketType = (PacketType) _AESBuffer[0];
-		Serial.print("[Transceiver] Decrypted packet type: ");
-		Serial.println(decryptedPacketType);
-
-		switch (decryptedPacketType) {
-			case PacketType::AHRS:
-				auto decryptedPacket = (AHRSPacket*) ((uint8_t*) &_AESBuffer + typeLength);
-
-				decryptedPacket->print();
-
-				break;
-		}
 	}
 	else {
-		Serial.println("[Transceiver] Bad header");
+		// some other error occurred
+		Serial.print("[SX1262] Sending failed");
+	}
+}
+
+void Transceiver::receive(Aircraft &aircraft) {
+	uint8_t receivedLength = _sx1262.Receive(_sx1262Buffer, sizeof(_sx1262Buffer));
+
+	if (receivedLength <= 0)
+		return;
+
+	Serial.println("[Transceiver] Got packet");
+
+	auto sx1262BufferPtr = (uint8_t*) &_sx1262Buffer;
+	auto header = ((uint32_t*) sx1262BufferPtr)[0];
+
+	// Checking header
+	if (header != Settings::Transceiver::packetHeader) {
+		Serial.printf("[Transceiver] Unsupported header: %02X", header);
+		return;
 	}
 
-//	Serial.println("[SX1262] Sending packet");
-//
-//	if (_radio.Send((uint8_t*) &packet, sizeof(GovnoPacket), SX126x_TXMODE_SYNC)) {
-//
-//	}
-//	else {
-//		// some other error occurred
-//		Serial.print("[SX1262] failed, code ");
-//	}
+	uint8_t headerLength = sizeof(Settings::Transceiver::packetHeader);
+	sx1262BufferPtr += headerLength;
 
+	Serial.println("[Transceiver] Decrypting packet");
+
+	uint8_t encryptedLength = receivedLength - headerLength;
+	encryptedLength = encryptedLength + 16 - (encryptedLength % 16);
+
+	// Decrypting
+	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
+	esp_aes_crypt_cbc(
+		&_AESContext,
+		ESP_AES_DECRYPT,
+		encryptedLength,
+		_AESIVCopy,
+		sx1262BufferPtr,
+		_AESBuffer
+	);
+
+	parsePacket((uint8_t *) &_AESBuffer);
+}
+
+void Transceiver::parsePacket(uint8_t* bufferPtr) {
+	auto packetType = (PacketType) *bufferPtr;
+	bufferPtr += sizeof(PacketType);
+
+	switch (packetType) {
+		case PacketType::ControllerCommand:
+			{
+				auto controllerCommandPacket = (ControllerCommandPacket*) bufferPtr;
+
+				controllerCommandPacket->print();
+			}
+
+			break;
+
+		default:
+			Serial.print("[Transceiver] Unsupported packet type: ");
+			Serial.println(packetType);
+
+			break;
+	}
 }

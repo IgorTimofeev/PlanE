@@ -4,29 +4,36 @@
 #define PLANE_PACKETCONTAINER_H
 #endif
 
+#include "cstdint"
+#include "settings.h"
+
 enum PacketType : uint8_t {
-	AHRS = 5
+	AircraftAHRS = 1,
+	ControllerCommand = 2
 };
 
 #pragma pack(push, 1)
 template<typename T>
-struct Packet {
-	explicit Packet(uint32_t header, PacketType type, T body) :
-		header(header),
+struct PacketTypeWrapper {
+	explicit PacketTypeWrapper(PacketType type, T body) :
 		type(type),
 		body(body)
 	{
 
 	}
 
-	uint32_t header;
 	PacketType type;
 	T body;
 };
 #pragma pack(pop)
 
 #pragma pack(push, 1)
-struct AHRSPacket {
+struct AircraftAHRSPacket {
+	uint8_t throttle;
+	uint8_t ailerons;
+	uint8_t rudder;
+	bool strobeLights;
+
 	float pitch;
 	float roll;
 	float yaw;
@@ -34,10 +41,19 @@ struct AHRSPacket {
 	float temperature;
 	float pressure;
 
-	float qnh;
-	float altitude;
-
 	void print() const {
+		Serial.print("throttle: ");
+		Serial.println(throttle);
+
+		Serial.print("ailerons: ");
+		Serial.println(ailerons);
+
+		Serial.print("rudder: ");
+		Serial.println(rudder);
+
+		Serial.print("strobeLights: ");
+		Serial.println(strobeLights);
+
 		Serial.print("Pitch: ");
 		Serial.println(pitch);
 
@@ -52,9 +68,29 @@ struct AHRSPacket {
 
 		Serial.print("Pressure: ");
 		Serial.println(pressure);
+	}
+};
+#pragma pack(pop)
 
-		Serial.print("Altitude: ");
-		Serial.println(altitude);
+#pragma pack(push, 1)
+struct ControllerCommandPacket {
+	uint8_t throttle;
+	uint8_t ailerons;
+	uint8_t rudder;
+	boolean strobeLights;
+
+	void print() const {
+		Serial.print("throttle: ");
+		Serial.println(throttle);
+
+		Serial.print("ailerons: ");
+		Serial.println(ailerons);
+
+		Serial.print("rudder: ");
+		Serial.println(rudder);
+
+		Serial.print("strobeLights: ");
+		Serial.println(strobeLights);
 	}
 };
 #pragma pack(pop)
