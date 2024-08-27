@@ -19,8 +19,8 @@ void AHRS::begin() {
 	Serial.println("[MPU9250] Calibrating");
 	// // Already calibrated in begin()?
 	// // _imu.calibrateGyro();
-	//	_imu.calibrateAccel();
-	//	_imu.calibrateMag();
+	_imu.calibrateAccel();
+	_imu.calibrateMag();
 
 	Serial.println("[BMP280] Initializing");
 
@@ -43,10 +43,10 @@ void AHRS::begin() {
 void AHRS::tick(Aircraft &aircraft) {
 	_imu.readSensor();
 
-	_localData.setRoll(atan2(_imu.getAccelY_mss(), _imu.getAccelZ_mss()));
+	_localData.setRoll(atan2(_imu.getAccelY_mss(), -_imu.getAccelZ_mss()));
 
 	_localData.setPitch(atan2(
-		-_imu.getAccelX_mss(),
+		_imu.getAccelX_mss(),
 		sqrt(_imu.getAccelY_mss() * _imu.getAccelY_mss() + _imu.getAccelZ_mss() * _imu.getAccelZ_mss())
 	));
 
@@ -56,54 +56,57 @@ void AHRS::tick(Aircraft &aircraft) {
 	_localData.setPressure(_bmp.readPressure());
 	updateAltitude();
 
-	Serial.print("[MPU9250] Acc: ");
-	Serial.print(_imu.getAccelX_mss());
-	Serial.print(", ");
-	Serial.print(_imu.getAccelY_mss());
-	Serial.print(", ");
-	Serial.println(_imu.getAccelZ_mss());
+	_localData.setSpeed(_localData.getSpeed() + 1);
+	if (_localData.getSpeed() > 350)
+		_localData.setSpeed(0);
 
-	Serial.print("[MPU9250] Pitch / roll: ");
-	Serial.print(degrees(_localData.getPitch()));
-	Serial.print(", ");
-	Serial.println(degrees(_localData.getRoll()));
-
-	Serial.print("[MPU9250] Gyro: ");
-	Serial.print(_imu.getGyroX_rads());
-	Serial.print(", ");
-	Serial.print(_imu.getGyroY_rads());
-	Serial.print(", ");
-	Serial.println(_imu.getGyroZ_rads());
-
-	Serial.print("[MPU9250] Mag: ");
-	Serial.print(_imu.getMagX_uT());
-	Serial.print(", ");
-	Serial.print(_imu.getMagY_uT());
-	Serial.print(", ");
-	Serial.println(_imu.getMagZ_uT());
-
-	Serial.print("[MPU9250] Yaw: ");
-	Serial.println(degrees(_localData.getYaw()));
-
-	Serial.print("[MPU9250] Temperature: ");
-	Serial.println(_imu.getTemperature_C());
-
-	Serial.print("[BMP280] Temperature: ");
-	Serial.print(_localData.getTemperature());
-	Serial.println(" *C");
-
-	Serial.print("[BMP280] Pressure: ");
-	Serial.print(_localData.getPressure());
-	Serial.println(" Pa");
-
-	Serial.print("[BMP280] Altitude: ");
-	Serial.print(_localData.getAltitude());
-	Serial.println(" m");
-
-	Serial.print("[BMP280] Speed: ");
-	_localData.setSpeed((float) random(0, 100));
-	Serial.print(_localData.getSpeed());
-	Serial.println(" m");
+//	Serial.print("[MPU9250] Acc: ");
+//	Serial.print(_imu.getAccelX_mss());
+//	Serial.print(", ");
+//	Serial.print(_imu.getAccelY_mss());
+//	Serial.print(", ");
+//	Serial.println(_imu.getAccelZ_mss());
+//
+//	Serial.print("[MPU9250] Pitch / roll: ");
+//	Serial.print(degrees(_localData.getPitch()));
+//	Serial.print(", ");
+//	Serial.println(degrees(_localData.getRoll()));
+//
+//	Serial.print("[MPU9250] Gyro: ");
+//	Serial.print(_imu.getGyroX_rads());
+//	Serial.print(", ");
+//	Serial.print(_imu.getGyroY_rads());
+//	Serial.print(", ");
+//	Serial.println(_imu.getGyroZ_rads());
+//
+//	Serial.print("[MPU9250] Mag: ");
+//	Serial.print(_imu.getMagX_uT());
+//	Serial.print(", ");
+//	Serial.print(_imu.getMagY_uT());
+//	Serial.print(", ");
+//	Serial.println(_imu.getMagZ_uT());
+//
+//	Serial.print("[MPU9250] Yaw: ");
+//	Serial.println(degrees(_localData.getYaw()));
+//
+//	Serial.print("[MPU9250] Temperature: ");
+//	Serial.println(_imu.getTemperature_C());
+//
+//	Serial.print("[BMP280] Temperature: ");
+//	Serial.print(_localData.getTemperature());
+//	Serial.println(" *C");
+//
+//	Serial.print("[BMP280] Pressure: ");
+//	Serial.print(_localData.getPressure());
+//	Serial.println(" Pa");
+//
+//	Serial.print("[BMP280] Altitude: ");
+//	Serial.print(_localData.getAltitude());
+//	Serial.println(" m");
+//
+//	Serial.print("[BMP280] Speed: ");
+//	Serial.print(_localData.getSpeed());
+//	Serial.println(" m");
 }
 
 LocalData &AHRS::getLocalData() {

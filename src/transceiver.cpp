@@ -51,8 +51,6 @@ void Transceiver::begin() {
 
 	Serial.println("[AES] Initializing");
 
-	esp_aes_init(&_AESContext);
-	esp_aes_setkey(&_AESContext, _AESKey, sizeof(_AESKey) * 8);
 }
 
 void Transceiver::tick(Aircraft &aircraft) {
@@ -61,45 +59,45 @@ void Transceiver::tick(Aircraft &aircraft) {
 	send(
 		PacketType::AircraftAHRS,
 		AircraftAHRSPacket {
-//			.throttle = ahrs.getRemoteData().getThrottle(),
-//			.ailerons = ahrs.getRemoteData().getAilerons(),
-//			.rudder = ahrs.getRemoteData().getRudder(),
-//			.flaps = ahrs.getRemoteData().getFlaps(),
+			.throttle = ahrs.getRemoteData().getThrottle(),
+			.ailerons = ahrs.getRemoteData().getAilerons(),
+			.rudder = ahrs.getRemoteData().getRudder(),
+			.flaps = ahrs.getRemoteData().getFlaps(),
+
+			.pitch = ahrs.getLocalData().getPitch(),
+			.roll = ahrs.getLocalData().getRoll(),
+			.yaw = ahrs.getLocalData().getYaw(),
+
+			.temperature = ahrs.getLocalData().getTemperature(),
+			.pressure = ahrs.getLocalData().getPressure(),
+
+			.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
+			.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+
+			.altitude = ahrs.getLocalData().getAltitude(),
+			.speed = ahrs.getLocalData().getSpeed(),
+
+			.strobeLights = ahrs.getRemoteData().getStrobeLights(),
+
+//			.throttle = 1,
+//			.ailerons = 2,
+//			.rudder = 3,
+//			.flaps = 4,
 //
-//			.pitch = ahrs.getLocalData().getPitch(),
-//			.roll = ahrs.getLocalData().getRoll(),
-//			.yaw = ahrs.getLocalData().getYaw(),
+//			.pitch =5,
+//			.roll =6,
+//			.yaw =7,
 //
-//			.temperature = ahrs.getLocalData().getTemperature(),
-//			.pressure = ahrs.getLocalData().getPressure(),
+//			.temperature =8,
+//			.pressure =9,
 //
-//			.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
-//			.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+//			.altimeterMode = AltimeterMode::QNH,
+//			.altimeterPressure = 1,
 //
-//			.altitude = ahrs.getLocalData().getAltitude(),
-//			.speed = ahrs.getLocalData().getSpeed(),
+//			.altitude =11,
+//			.speed =12,
 //
-//			.strobeLights = ahrs.getRemoteData().getStrobeLights(),
-
-			.throttle = 1,
-			.ailerons = 2,
-			.rudder = 3,
-			.flaps = 4,
-
-			.pitch =5,
-			.roll =6,
-			.yaw =7,
-
-			.temperature =8,
-			.pressure =9,
-
-			.altimeterMode = AltimeterMode::QNH,
-			.altimeterPressure = 1,
-
-			.altitude =11,
-			.speed =12,
-
-			.strobeLights = true,
+//			.strobeLights = true,
 		}
 	);
 
@@ -108,8 +106,6 @@ void Transceiver::tick(Aircraft &aircraft) {
 
 template<typename T>
 void Transceiver::send(PacketType packetType, const T& packet) {
-	Serial.println("[Transceiver] Encrypting packet");
-
 	auto wrapper = PacketTypeWrapper<T>(packetType, packet);
 
 	uint8_t wrapperLength = sizeof(wrapper);
@@ -123,9 +119,14 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 	mempcpy(&_AESBuffer, &header, headerLength);
 
 	// Encrypting body
+	auto aes = esp_aes_context();
+	esp_aes_init(&aes);
+	esp_aes_setkey(&aes, _AESKey, sizeof(_AESKey) * 8);
+
 	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
+
 	esp_aes_crypt_cbc(
-		&_AESContext,
+		&aes,
 		ESP_AES_ENCRYPT,
 		encryptedWrapperLength,
 		_AESIVCopy,
@@ -133,53 +134,9 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 		(uint8_t*) &_AESBuffer + headerLength
 	);
 
-	Serial.printf("[SX1262] Sending packet of %d bytes\n", totalLength);
+	esp_aes_free(&aes);
 
-	Serial.print("Encrypted bytes: ");
-
-	for (uint8_t i = 0; i < totalLength; i++)
-		Serial.printf("%d ", _AESBuffer[i]);
-
-	Serial.println();
-
-	// Decrypting
-	Serial.printf("Decoding: %d\n", encryptedWrapperLength);
-
-	uint8_t received[sizeof(_AESBuffer)];
-	uint8_t decoded[sizeof(_AESBuffer)];
-
-	mempcpy(received, _AESBuffer, sizeof(_AESBuffer));
-	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
-
-	if (
-		esp_aes_crypt_cbc(
-			&_AESContext,
-			ESP_AES_DECRYPT,
-			encryptedWrapperLength,
-			_AESIVCopy,
-			(uint8_t*) &received + headerLength,
-			decoded
-		) != 0
-		) {
-		Serial.printf("Decoding failed: %d\n", encryptedWrapperLength);
-
-		return;
-	}
-
-	Serial.print("Bytes decoded: ");
-
-	for (uint8_t i = 0; i < wrapperLength; i++) {
-		Serial.printf("%d ", decoded[i]);
-	}
-
-	Serial.println();
-
-	Serial.print("Encrypted bytes after decode: ");
-
-	for (uint8_t i = 0; i < totalLength; i++)
-		Serial.printf("%d ", _AESBuffer[i]);
-
-	Serial.println();
+//	Serial.printf("[SX1262] Sending packet with type %d of %d bytes\n", packetType, totalLength);
 
 	if (_sx1262.Send(_AESBuffer, totalLength, SX126x_TXMODE_SYNC)) {
 
@@ -195,37 +152,43 @@ void Transceiver::receive(Aircraft &aircraft) {
 	if (receivedLength == 0)
 		return;
 
-	Serial.printf("[Transceiver] Got packet of %d bytes\n", receivedLength);
-
-	auto sx1262BufferPtr = (uint8_t*) &_sx1262Buffer;
-	auto header = ((uint32_t*) sx1262BufferPtr)[0];
+//	Serial.printf("[Transceiver] Got packet of %d bytes\n", receivedLength);
 
 	// Checking header
+	auto header = ((uint32_t*) &_sx1262Buffer)[0];
+	uint8_t headerLength = sizeof(settings::transceiver::packetHeader);
+
 	if (header != settings::transceiver::packetHeader) {
 		Serial.printf("[Transceiver] Unsupported header: %02X\n", header);
 		return;
 	}
 
-	uint8_t headerLength = sizeof(settings::transceiver::packetHeader);
-	sx1262BufferPtr += headerLength;
-
-	Serial.println("[Transceiver] Decrypting packet");
-
 	uint8_t encryptedLength = receivedLength - headerLength;
-	encryptedLength = encryptedLength + 16 - (encryptedLength % 16);
 
 	// Decrypting
+	auto aes = esp_aes_context();
+	esp_aes_init(&aes);
+	esp_aes_setkey(&aes, _AESKey, sizeof(_AESKey) * 8);
+
 	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
-	esp_aes_crypt_cbc(
-		&_AESContext,
+
+	auto decryptState = esp_aes_crypt_cbc(
+		&aes,
 		ESP_AES_DECRYPT,
 		encryptedLength,
 		_AESIVCopy,
-		sx1262BufferPtr,
+		(uint8_t*) &_sx1262Buffer + headerLength,
 		_AESBuffer
 	);
 
-	parsePacket(aircraft, (uint8_t *) &_AESBuffer);
+	esp_aes_free(&aes);
+
+	if (decryptState == 0) {
+		parsePacket(aircraft, _AESBuffer);
+	}
+	else {
+		Serial.printf("Decrypting failed: %d\n", encryptedLength);
+	}
 }
 
 void Transceiver::parsePacket(Aircraft &aircraft, uint8_t* bufferPtr) {
