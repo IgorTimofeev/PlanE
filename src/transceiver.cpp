@@ -61,29 +61,49 @@ void Transceiver::tick(Aircraft &aircraft) {
 	send(
 		PacketType::AircraftAHRS,
 		AircraftAHRSPacket {
-			.throttle = ahrs.getRemoteData().getThrottle(),
-			.ailerons = ahrs.getRemoteData().getAilerons(),
-			.rudder = ahrs.getRemoteData().getRudder(),
-			.flaps = ahrs.getRemoteData().getFlaps(),
+//			.throttle = ahrs.getRemoteData().getThrottle(),
+//			.ailerons = ahrs.getRemoteData().getAilerons(),
+//			.rudder = ahrs.getRemoteData().getRudder(),
+//			.flaps = ahrs.getRemoteData().getFlaps(),
+//
+//			.pitch = ahrs.getLocalData().getPitch(),
+//			.roll = ahrs.getLocalData().getRoll(),
+//			.yaw = ahrs.getLocalData().getYaw(),
+//
+//			.temperature = ahrs.getLocalData().getTemperature(),
+//			.pressure = ahrs.getLocalData().getPressure(),
+//
+//			.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
+//			.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+//
+//			.altitude = ahrs.getLocalData().getAltitude(),
+//			.speed = ahrs.getLocalData().getSpeed(),
+//
+//			.strobeLights = ahrs.getRemoteData().getStrobeLights(),
 
-			.pitch = ahrs.getLocalData().getPitch(),
-			.roll = ahrs.getLocalData().getRoll(),
-			.yaw = ahrs.getLocalData().getYaw(),
+			.throttle = 1,
+			.ailerons = 2,
+			.rudder = 3,
+			.flaps = 4,
 
-			.temperature = ahrs.getLocalData().getTemperature(),
-			.pressure = ahrs.getLocalData().getPressure(),
+			.pitch =5,
+			.roll =6,
+			.yaw =7,
 
-			.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
-			.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+			.temperature =8,
+			.pressure =9,
 
-			.altitude = ahrs.getLocalData().getAltitude(),
-			.speed = ahrs.getLocalData().getSpeed(),
+			.altimeterMode = AltimeterMode::QNH,
+			.altimeterPressure = 1,
 
-			.strobeLights = ahrs.getRemoteData().getStrobeLights(),
+			.altitude =11,
+			.speed =12,
+
+			.strobeLights = true,
 		}
 	);
 
-	receive(aircraft);
+//	receive(aircraft);
 }
 
 template<typename T>
@@ -97,7 +117,7 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 
 	auto header = settings::transceiver::packetHeader;
 	uint8_t headerLength = sizeof(header);
-	uint8_t totalLength = wrapperLength + headerLength;
+	uint8_t totalLength = encryptedWrapperLength + headerLength;
 
 	// Copying header
 	mempcpy(&_AESBuffer, &header, headerLength);
@@ -113,13 +133,19 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 		(uint8_t*) &_AESBuffer + headerLength
 	);
 
-	Serial.println("[SX1262] Sending packet");
+	Serial.printf("[SX1262] Sending packet of %d bytes\n", totalLength);
 
-	if (_sx1262.Send((uint8_t*) &_AESBuffer, totalLength, SX126x_TXMODE_SYNC)) {
+	Serial.print("Bytes: ");
+
+	for (uint8_t i = 0; i < totalLength; i++)
+		Serial.printf("%d ", _AESBuffer[i]);
+
+	Serial.println();
+
+	if (_sx1262.Send(_AESBuffer, totalLength, SX126x_TXMODE_SYNC)) {
 
 	}
 	else {
-		// some other error occurred
 		Serial.print("[SX1262] Sending failed");
 	}
 }
@@ -127,17 +153,17 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 void Transceiver::receive(Aircraft &aircraft) {
 	uint8_t receivedLength = _sx1262.Receive(_sx1262Buffer, sizeof(_sx1262Buffer));
 
-	if (receivedLength <= 0)
+	if (receivedLength == 0)
 		return;
 
-	Serial.println("[Transceiver] Got packet");
+	Serial.printf("[Transceiver] Got packet of %d bytes\n", receivedLength);
 
 	auto sx1262BufferPtr = (uint8_t*) &_sx1262Buffer;
 	auto header = ((uint32_t*) sx1262BufferPtr)[0];
 
 	// Checking header
 	if (header != settings::transceiver::packetHeader) {
-		Serial.printf("[Transceiver] Unsupported header: %02X", header);
+		Serial.printf("[Transceiver] Unsupported header: %02X\n", header);
 		return;
 	}
 

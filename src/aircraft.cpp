@@ -3,16 +3,6 @@
 void Aircraft::begin() {
 	SPI.begin();
 
-//			// Resetting CS pins just in case
-//			pinMode(26, OUTPUT);
-//			digitalWrite(26, HIGH);
-//
-//			pinMode(27, OUTPUT);
-//			digitalWrite(27, HIGH);
-//
-//			pinMode(5, OUTPUT);
-//			digitalWrite(5, HIGH);
-
 	_transceiver.begin();
 	_ahrs.begin();
 }

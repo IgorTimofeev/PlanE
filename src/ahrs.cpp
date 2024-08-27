@@ -4,6 +4,8 @@
 void AHRS::begin() {
 	Serial.println("[MPU9250] Initializing");
 
+	auto& wire = Wire;
+
 	// start communication with IMU
 	if (_imu.begin() < 0) {
 		Serial.println("[MPU9250] Initialization failed");
@@ -116,7 +118,7 @@ void AHRS::updateAltitude() {
 	const float seaLevelPressure =
 		_remoteData.getAltimeterMode() == AltimeterMode::QNH
 		? _remoteData.getAltimeterPressure()
-		: 1013.0f;
+		: 101300.0f;
 
 	_localData.setAltitude(44330.0f * (1.0f - powf(_localData.getPressure() / seaLevelPressure, 1.0f / 5.255f)));
 }

@@ -9,6 +9,7 @@
 
 enum PacketType : uint8_t {
 	AircraftAHRS = 1,
+
 	ControllerCommand = 2
 };
 

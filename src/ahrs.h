@@ -13,15 +13,7 @@
 
 class Aircraft;
 
-class MutualData {
-	public:
-
-
-	private:
-
-};
-
-class LocalData : public MutualData {
+class LocalData {
 	public:
 		float getPitch() const;
 		void setPitch(float pitch);
@@ -54,7 +46,7 @@ class LocalData : public MutualData {
 		float _speed = 0;
 };
 
-class RemoteData : public MutualData {
+class RemoteData {
 	public:
 		uint8_t getThrottle() const;
 		void setThrottle(uint8_t throttle);
@@ -84,7 +76,7 @@ class RemoteData : public MutualData {
 		uint8_t _flaps;
 
 		AltimeterMode _altimeterMode = AltimeterMode::QNH;
-		float _altimeterPressure = 1013;
+		float _altimeterPressure = 100792;
 
 		bool _strobeLights;
 };

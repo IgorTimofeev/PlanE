@@ -9,9 +9,9 @@
 namespace settings {
 	namespace pinout {
 		namespace transceiver {
-			const uint8_t chipSelect = 32;
-			const uint8_t reset = 33;
-			const uint8_t busy = 25;
+			const uint8_t chipSelect = 10;
+			const uint8_t reset = 6;
+			const uint8_t busy = 7;
 		}
 	}
 
