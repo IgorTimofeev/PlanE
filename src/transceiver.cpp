@@ -135,7 +135,46 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 
 	Serial.printf("[SX1262] Sending packet of %d bytes\n", totalLength);
 
-	Serial.print("Bytes: ");
+	Serial.print("Encrypted bytes: ");
+
+	for (uint8_t i = 0; i < totalLength; i++)
+		Serial.printf("%d ", _AESBuffer[i]);
+
+	Serial.println();
+
+	// Decrypting
+	Serial.printf("Decoding: %d\n", encryptedWrapperLength);
+
+	uint8_t received[sizeof(_AESBuffer)];
+	uint8_t decoded[sizeof(_AESBuffer)];
+
+	mempcpy(received, _AESBuffer, sizeof(_AESBuffer));
+	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
+
+	if (
+		esp_aes_crypt_cbc(
+			&_AESContext,
+			ESP_AES_DECRYPT,
+			encryptedWrapperLength,
+			_AESIVCopy,
+			(uint8_t*) &received + headerLength,
+			decoded
+		) != 0
+		) {
+		Serial.printf("Decoding failed: %d\n", encryptedWrapperLength);
+
+		return;
+	}
+
+	Serial.print("Bytes decoded: ");
+
+	for (uint8_t i = 0; i < wrapperLength; i++) {
+		Serial.printf("%d ", decoded[i]);
+	}
+
+	Serial.println();
+
+	Serial.print("Encrypted bytes after decode: ");
 
 	for (uint8_t i = 0; i < totalLength; i++)
 		Serial.printf("%d ", _AESBuffer[i]);
