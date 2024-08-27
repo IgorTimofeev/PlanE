@@ -13,5 +13,5 @@ void setup() {
 void loop() {
 	aircraft.tick();
 
-//	delay(5);
+	delay(33);
 }
