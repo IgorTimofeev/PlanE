@@ -6,20 +6,16 @@
 
 #include "cstdint"
 
-class Settings {
-	public:
-		class Pinout {
-			public:
-				class Transceiver {
-					public:
-						static const uint8_t chipSelect = 32;
-						static const uint8_t reset = 33;
-						static const uint8_t busy = 25;
-				};
-		};
+namespace settings {
+	namespace pinout {
+		namespace transceiver {
+			const uint8_t chipSelect = 32;
+			const uint8_t reset = 33;
+			const uint8_t busy = 25;
+		}
+	}
 
-		class Transceiver {
-			public:
-				static const uint32_t packetHeader = 0x506C416E;
-		};
-};
+	namespace transceiver {
+		const uint32_t packetHeader = 0x506C416E;
+	}
+}

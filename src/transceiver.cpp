@@ -61,12 +61,25 @@ void Transceiver::tick(Aircraft &aircraft) {
 	send(
 		PacketType::AircraftAHRS,
 		AircraftAHRSPacket {
-			.pitch = ahrs.getPitch(),
-			.roll = ahrs.getRoll(),
-			.yaw = ahrs.getYaw(),
+			.throttle = ahrs.getRemoteData().getThrottle(),
+			.ailerons = ahrs.getRemoteData().getAilerons(),
+			.rudder = ahrs.getRemoteData().getRudder(),
+			.flaps = ahrs.getRemoteData().getFlaps(),
 
-			.temperature = ahrs.getTemperature(),
-			.pressure = ahrs.getPressure(),
+			.pitch = ahrs.getLocalData().getPitch(),
+			.roll = ahrs.getLocalData().getRoll(),
+			.yaw = ahrs.getLocalData().getYaw(),
+
+			.temperature = ahrs.getLocalData().getTemperature(),
+			.pressure = ahrs.getLocalData().getPressure(),
+
+			.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
+			.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+
+			.altitude = ahrs.getLocalData().getAltitude(),
+			.speed = ahrs.getLocalData().getSpeed(),
+
+			.strobeLights = ahrs.getRemoteData().getStrobeLights(),
 		}
 	);
 
@@ -82,7 +95,7 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 	uint8_t wrapperLength = sizeof(wrapper);
 	uint8_t encryptedWrapperLength = wrapperLength + 16 - (wrapperLength % 16);
 
-	auto header = Settings::Transceiver::packetHeader;
+	auto header = settings::transceiver::packetHeader;
 	uint8_t headerLength = sizeof(header);
 	uint8_t totalLength = wrapperLength + headerLength;
 
@@ -123,12 +136,12 @@ void Transceiver::receive(Aircraft &aircraft) {
 	auto header = ((uint32_t*) sx1262BufferPtr)[0];
 
 	// Checking header
-	if (header != Settings::Transceiver::packetHeader) {
+	if (header != settings::transceiver::packetHeader) {
 		Serial.printf("[Transceiver] Unsupported header: %02X", header);
 		return;
 	}
 
-	uint8_t headerLength = sizeof(Settings::Transceiver::packetHeader);
+	uint8_t headerLength = sizeof(settings::transceiver::packetHeader);
 	sx1262BufferPtr += headerLength;
 
 	Serial.println("[Transceiver] Decrypting packet");
@@ -147,10 +160,12 @@ void Transceiver::receive(Aircraft &aircraft) {
 		_AESBuffer
 	);
 
-	parsePacket((uint8_t *) &_AESBuffer);
+	parsePacket(aircraft, (uint8_t *) &_AESBuffer);
 }
 
-void Transceiver::parsePacket(uint8_t* bufferPtr) {
+void Transceiver::parsePacket(Aircraft &aircraft, uint8_t* bufferPtr) {
+	auto& ahrs = aircraft.getAHRS();
+
 	auto packetType = (PacketType) *bufferPtr;
 	bufferPtr += sizeof(PacketType);
 
@@ -160,6 +175,16 @@ void Transceiver::parsePacket(uint8_t* bufferPtr) {
 				auto controllerCommandPacket = (ControllerCommandPacket*) bufferPtr;
 
 				controllerCommandPacket->print();
+
+				ahrs.getRemoteData().setThrottle(controllerCommandPacket->throttle);
+				ahrs.getRemoteData().setAilerons(controllerCommandPacket->ailerons);
+				ahrs.getRemoteData().setRudder(controllerCommandPacket->rudder);
+				ahrs.getRemoteData().setFlaps(controllerCommandPacket->flaps);
+
+				ahrs.getRemoteData().setAltimeterPressure(controllerCommandPacket->altimeterPressure);
+				ahrs.getRemoteData().setAltimeterMode(controllerCommandPacket->altimeterMode);
+
+				ahrs.getRemoteData().setStrobeLights(controllerCommandPacket->strobeLights);
 			}
 
 			break;

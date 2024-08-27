@@ -12,6 +12,11 @@ enum PacketType : uint8_t {
 	ControllerCommand = 2
 };
 
+enum AltimeterMode : uint8_t  {
+	QNH,
+	STD
+};
+
 #pragma pack(push, 1)
 template<typename T>
 struct PacketTypeWrapper {
@@ -32,7 +37,7 @@ struct AircraftAHRSPacket {
 	uint8_t throttle;
 	uint8_t ailerons;
 	uint8_t rudder;
-	bool strobeLights;
+	uint8_t flaps;
 
 	float pitch;
 	float roll;
@@ -41,34 +46,13 @@ struct AircraftAHRSPacket {
 	float temperature;
 	float pressure;
 
-	void print() const {
-		Serial.print("throttle: ");
-		Serial.println(throttle);
+	AltimeterMode altimeterMode;
+	float altimeterPressure;
 
-		Serial.print("ailerons: ");
-		Serial.println(ailerons);
+	float altitude;
+	float speed;
 
-		Serial.print("rudder: ");
-		Serial.println(rudder);
-
-		Serial.print("strobeLights: ");
-		Serial.println(strobeLights);
-
-		Serial.print("Pitch: ");
-		Serial.println(pitch);
-
-		Serial.print("Roll: ");
-		Serial.println(roll);
-
-		Serial.print("Yaw: ");
-		Serial.println(yaw);
-
-		Serial.print("Temp: ");
-		Serial.println(temperature);
-
-		Serial.print("Pressure: ");
-		Serial.println(pressure);
-	}
+	bool strobeLights;
 };
 #pragma pack(pop)
 
@@ -77,20 +61,17 @@ struct ControllerCommandPacket {
 	uint8_t throttle;
 	uint8_t ailerons;
 	uint8_t rudder;
+	uint8_t flaps;
+
+	AltimeterMode altimeterMode;
+	float altimeterPressure;
+
 	boolean strobeLights;
 
 	void print() const {
-		Serial.print("throttle: ");
-		Serial.println(throttle);
-
-		Serial.print("ailerons: ");
-		Serial.println(ailerons);
-
-		Serial.print("rudder: ");
-		Serial.println(rudder);
-
-		Serial.print("strobeLights: ");
-		Serial.println(strobeLights);
+		Serial.printf("[AHRSPacket] Throttle, ailerons, rudder, flaps: %d, %d, %d, %d\n", throttle, ailerons, rudder, flaps);
+		Serial.printf("[AHRSPacket] Altimeter mode, pressure: %d, %f\n", altimeterMode, altimeterPressure);
+		Serial.printf("[AHRSPacket] Strobe lights: %d\n", strobeLights);
 	}
 };
 #pragma pack(pop)

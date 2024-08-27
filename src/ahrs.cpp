@@ -41,18 +41,18 @@ void AHRS::begin() {
 void AHRS::tick(Aircraft &aircraft) {
 	_imu.readSensor();
 
-	_roll = atan2(_imu.getAccelY_mss(), _imu.getAccelZ_mss());
+	_localData.setRoll(atan2(_imu.getAccelY_mss(), _imu.getAccelZ_mss()));
 
-	_pitch = atan2(
+	_localData.setPitch(atan2(
 		-_imu.getAccelX_mss(),
 		sqrt(_imu.getAccelY_mss() * _imu.getAccelY_mss() + _imu.getAccelZ_mss() * _imu.getAccelZ_mss())
-	);
+	));
 
-	_yaw = atan2(_imu.getMagY_uT(), _imu.getMagX_uT());
+	_localData.setYaw(atan2(_imu.getMagY_uT(), _imu.getMagX_uT()));
 
-	_temperature = _bmp.readTemperature();
-	_pressure = _bmp.readPressure();
-	_altitude = pressureToAltitude(_pressure, _qnh);
+	_localData.setTemperature(_bmp.readTemperature());
+	_localData.setPressure(_bmp.readPressure());
+	updateAltitude();
 
 	Serial.print("[MPU9250] Acc: ");
 	Serial.print(_imu.getAccelX_mss());
@@ -62,9 +62,9 @@ void AHRS::tick(Aircraft &aircraft) {
 	Serial.println(_imu.getAccelZ_mss());
 
 	Serial.print("[MPU9250] Pitch / roll: ");
-	Serial.print(degrees(_pitch));
+	Serial.print(degrees(_localData.getPitch()));
 	Serial.print(", ");
-	Serial.println(degrees(_roll));
+	Serial.println(degrees(_localData.getRoll()));
 
 	Serial.print("[MPU9250] Gyro: ");
 	Serial.print(_imu.getGyroX_rads());
@@ -81,72 +81,154 @@ void AHRS::tick(Aircraft &aircraft) {
 	Serial.println(_imu.getMagZ_uT());
 
 	Serial.print("[MPU9250] Yaw: ");
-	Serial.println(degrees(_yaw));
+	Serial.println(degrees(_localData.getYaw()));
 
 	Serial.print("[MPU9250] Temperature: ");
 	Serial.println(_imu.getTemperature_C());
 
 	Serial.print("[BMP280] Temperature: ");
-	Serial.print(_temperature);
+	Serial.print(_localData.getTemperature());
 	Serial.println(" *C");
 
 	Serial.print("[BMP280] Pressure: ");
-	Serial.print(_pressure);
+	Serial.print(_localData.getPressure());
 	Serial.println(" Pa");
 
 	Serial.print("[BMP280] Altitude: ");
-	Serial.print(_altitude);
+	Serial.print(_localData.getAltitude());
+	Serial.println(" m");
+
+	Serial.print("[BMP280] Speed: ");
+	_localData.setSpeed((float) random(0, 100));
+	Serial.print(_localData.getSpeed());
 	Serial.println(" m");
 }
 
-float AHRS::pressureToAltitude(float pressureInPa, float seaLevelInPa) {
-	return 44330.0f * (1.0f - powf(pressureInPa / seaLevelInPa, 1.0f / 5.255f));
+LocalData &AHRS::getLocalData() {
+	return _localData;
 }
 
-float AHRS::getPitch() const {
+RemoteData &AHRS::getRemoteData() {
+	return _remoteData;
+}
+
+void AHRS::updateAltitude() {
+	const float seaLevelPressure =
+		_remoteData.getAltimeterMode() == AltimeterMode::QNH
+		? _remoteData.getAltimeterPressure()
+		: 1013.0f;
+
+	_localData.setAltitude(44330.0f * (1.0f - powf(_localData.getPressure() / seaLevelPressure, 1.0f / 5.255f)));
+}
+
+float LocalData::getPitch() const {
 	return _pitch;
 }
 
-float AHRS::getRoll() const {
+void LocalData::setPitch(float pitch) {
+	_pitch = pitch;
+}
+
+float LocalData::getRoll() const {
 	return _roll;
 }
 
-float AHRS::getYaw() const {
+void LocalData::setRoll(float roll) {
+	_roll = roll;
+}
+
+float LocalData::getYaw() const {
 	return _yaw;
 }
 
-float AHRS::getTemperature() const {
+void LocalData::setYaw(float yaw) {
+	_yaw = yaw;
+}
+
+float LocalData::getTemperature() const {
 	return _temperature;
 }
 
-float AHRS::getPressure() const {
+void LocalData::setTemperature(float temperature) {
+	_temperature = temperature;
+}
+
+float LocalData::getPressure() const {
 	return _pressure;
 }
 
-float AHRS::getAltitude() const {
+void LocalData::setPressure(float pressure) {
+	_pressure = pressure;
+}
+
+float LocalData::getAltitude() const {
 	return _altitude;
 }
 
-float AHRS::getQnhPa() const {
-	return _qnh;
+void LocalData::setAltitude(float altitude) {
+	_altitude = altitude;
 }
 
-void AHRS::setQnhPa(float value) {
-	_qnh = value;
+float LocalData::getSpeed() const {
+	return _speed;
 }
 
-float AHRS::getQnhMmHg() const {
-	return _qnh / 0.0075006157584566f;
+void LocalData::setSpeed(float speed) {
+	_speed = speed;
 }
 
-void AHRS::setQnhMmHg(float value) {
-	_qnh = value * 0.0075006157584566f;
+uint8_t RemoteData::getThrottle() const {
+	return _throttle;
 }
 
-float AHRS::getQnhInHg() const {
-	return _qnh / 0.0002952998057228486f;
+void RemoteData::setThrottle(uint8_t throttle) {
+	_throttle = throttle;
 }
 
-void AHRS::setQnhInHg(float value) {
-	_qnh = value * 0.0002952998057228486f;
+uint8_t RemoteData::getAilerons() const {
+	return _ailerons;
+}
+
+void RemoteData::setAilerons(uint8_t ailerons) {
+	_ailerons = ailerons;
+}
+
+uint8_t RemoteData::getRudder() const {
+	return _rudder;
+}
+
+void RemoteData::setRudder(uint8_t rudder) {
+	_rudder = rudder;
+}
+
+uint8_t RemoteData::getFlaps() const {
+	return _flaps;
+}
+
+void RemoteData::setFlaps(uint8_t flaps) {
+	_flaps = flaps;
+}
+
+AltimeterMode RemoteData::getAltimeterMode() const {
+	return _altimeterMode;
+}
+
+void RemoteData::setAltimeterMode(AltimeterMode altimeterMode) {
+	_altimeterMode = altimeterMode;
+}
+
+float RemoteData::getAltimeterPressure() const {
+	return _altimeterPressure;
+}
+
+void RemoteData::setAltimeterPressure(float altimeterPressure) {
+	_altimeterPressure = altimeterPressure;
+}
+
+bool RemoteData::getStrobeLights() const {
+	return _strobeLights;
+}
+
+void RemoteData::setStrobeLights(bool strobeLights) {
+	_strobeLights = strobeLights;
 }
