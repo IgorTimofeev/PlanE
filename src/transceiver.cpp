@@ -33,7 +33,7 @@ void Transceiver::begin() {
 
 	_sx1262.setDio1Action(onDio1Action);
 
-	_mode = TransceiverMode::StartTransmit;
+	_mode = TransceiverMode::Transmit;
 }
 
 void Transceiver::tick(Aircraft &aircraft) {
@@ -41,24 +41,15 @@ void Transceiver::tick(Aircraft &aircraft) {
 		return;
 
 	switch (_mode) {
-		case TransceiverMode::StartTransmit:
+		case TransceiverMode::Transmit:
 			transmit(aircraft);
 			break;
 
-		case TransceiverMode::FinishTransmit:
-			finishTransmit();
-
-			break;
-
 		case TransceiverMode::Receive:
-//	receive(aircraft);
-
-//			_mode = TransceiverMode::Transmit;
+			receive(aircraft);
 
 			break;
 	}
-
-	aircraft.getOnboardLed().blink();
 
 	_tickDeadline = millis() + settings::transceiver::tickInterval;
 }
@@ -67,9 +58,9 @@ void Transceiver::tick(Aircraft &aircraft) {
 void Transceiver::transmit(Aircraft& aircraft) {
 	auto& ahrs = aircraft.getAHRS();
 
-	transmitPacket(
+	startTransmitPacket(
 		PacketType::AircraftAHRS,
-		AircraftAHRSPacket{
+		AircraftAHRSPacket {
 			.throttle = ahrs.getRemoteData().getThrottle(),
 			.ailerons = ahrs.getRemoteData().getAilerons(),
 			.rudder = ahrs.getRemoteData().getRudder(),
@@ -114,8 +105,9 @@ void Transceiver::transmit(Aircraft& aircraft) {
 }
 
 template<typename T>
-void Transceiver::transmitPacket(PacketType packetType, const T& packet) {
+void Transceiver::startTransmitPacket(PacketType packetType, const T& packet) {
 	_canOperate = false;
+	_mode = TransceiverMode::Receive;
 
 	auto wrapper = PacketTypeWrapper<T>(packetType, packet);
 
@@ -153,20 +145,19 @@ void Transceiver::transmitPacket(PacketType packetType, const T& packet) {
 
 	if (state != RADIOLIB_ERR_NONE)
 		Serial.printf("[SX1262] Transmitting failed with code: %d\n", state);
-
-	_mode = TransceiverMode::FinishTransmit;
 }
 
-void Transceiver::finishTransmit() {
+void Transceiver::receive(Aircraft &aircraft) {
+	_mode = TransceiverMode::Transmit;
+
 	auto state = _sx1262.finishTransmit();
 
 	if (state != RADIOLIB_ERR_NONE)
 		Serial.printf("[SX1262] finishTransmit() failed with code %d\n", state);
 
-	_mode = TransceiverMode::StartTransmit;
-}
+	aircraft.getOnboardLed().blink();
 
-void Transceiver::receive(Aircraft &aircraft) {
+
 //	uint8_t receivedLength = _sx1262.Receive(_sx1262Buffer, sizeof(_sx1262Buffer));
 //
 //	if (receivedLength == 0)
