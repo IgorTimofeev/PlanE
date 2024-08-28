@@ -9,17 +9,17 @@ void Aircraft::begin() {
 }
 
 void Aircraft::tick() {
-	uint32_t startTime = millis();
+//	uint32_t startTime = millis();
 
 	_ahrs.tick(*this);
 	_transceiver.tick(*this);
 	_onboardLED.tick();
 
-	uint32_t tickCost = millis() - startTime;
-
-	// Svit slip u stenki.........
-	if (tickCost < settings::application::tickBudget)
-		delay(settings::application::tickBudget - tickCost);
+//	uint32_t tickCost = millis() - startTime;
+//
+//	// Svit slip u stenki.........
+//	if (tickCost < settings::application::tickBudget)
+//		delay(settings::application::tickBudget - tickCost);
 }
 
 AHRS &Aircraft::getAHRS() {
