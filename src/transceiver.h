@@ -35,7 +35,7 @@ class Transceiver {
 
 		TransceiverMode _mode = TransceiverMode::Idle;
 		static volatile bool _canOperate;
-		ICACHE_RAM_ATTR static void setFlag(void);
+		ICACHE_RAM_ATTR static void onDio1Action();
 		uint32_t _tickDeadline = 0;
 
 		const uint8_t _AESKey[16] = { 0x02, 0xEB, 0x46, 0x45, 0x96, 0xB0, 0xD6, 0xB9, 0x7C, 0x34, 0xBE, 0x77, 0x75, 0xF2, 0xBE, 0x1B };

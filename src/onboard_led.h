@@ -31,10 +31,10 @@ class OnboardLED {
 
 		void updateLED() const {
 			if (_deadline > 0) {
-				neopixelWrite(settings::pinout::aircraft::onboardLED, 0x99, 0x99, 0x99);
+				neopixelWrite(settings::pinout::board::onboardLED, 0x99, 0x99, 0x99);
 			}
 			else {
-				neopixelWrite(settings::pinout::aircraft::onboardLED, 0, 0, 0);
+				neopixelWrite(settings::pinout::board::onboardLED, 0, 0, 0);
 			}
 		}
 };

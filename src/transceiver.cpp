@@ -4,6 +4,10 @@
 
 volatile bool Transceiver::_canOperate = true;
 
+void Transceiver::onDio1Action() {
+	_canOperate = true;
+}
+
 void Transceiver::begin() {
 	Serial.println("[SX1262] Initializing");
 
@@ -27,7 +31,7 @@ void Transceiver::begin() {
 			delay(100);
 	}
 
-	_sx1262.setDio1Action(setFlag);
+	_sx1262.setDio1Action(onDio1Action);
 
 	_mode = TransceiverMode::Transmit;
 }
@@ -139,12 +143,11 @@ void Transceiver::transmit(PacketType packetType, const T& packet) {
 
 	Serial.printf("[SX1262] Transmitting packet with type %d of %d bytes\n", packetType, totalLength);
 
+	_canOperate = false;
+
 	auto state = _sx1262.startTransmit(_AESBuffer, totalLength);
 
-	if (state == RADIOLIB_ERR_NONE) {
-		_canOperate = false;
-	}
-	else {
+	if (state != RADIOLIB_ERR_NONE) {
 		Serial.print("[SX1262] Transmitting failed");
 	}
 }
@@ -226,8 +229,4 @@ void Transceiver::parsePacket(Aircraft &aircraft, uint8_t* bufferPtr) {
 
 			break;
 	}
-}
-
-void Transceiver::setFlag(void) {
-	_canOperate = true;
 }

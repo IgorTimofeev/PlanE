@@ -8,7 +8,7 @@
 
 namespace settings {
 	namespace pinout {
-		namespace aircraft {
+		namespace board {
 			const uint8_t onboardLED = 48;
 		}
 
@@ -20,12 +20,12 @@ namespace settings {
 		}
 	}
 
-	namespace aircraft {
+	namespace application {
 		const uint32_t tickBudget = 1000 / 60;
 	}
 
 	namespace transceiver {
-		const uint32_t tickInterval = 1000;
+		const uint32_t tickInterval = 33;
 
 		const uint32_t packetHeader = 0x506C416E;
 		const float frequency = 915;

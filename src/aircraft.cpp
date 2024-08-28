@@ -18,8 +18,8 @@ void Aircraft::tick() {
 	uint32_t tickCost = millis() - startTime;
 
 	// Svit slip u stenki.........
-	if (tickCost < settings::aircraft::tickBudget)
-		delayMicroseconds(settings::aircraft::tickBudget - tickCost);
+	if (tickCost < settings::application::tickBudget)
+		delay(settings::application::tickBudget - tickCost);
 }
 
 AHRS &Aircraft::getAHRS() {
