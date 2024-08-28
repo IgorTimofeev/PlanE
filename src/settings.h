@@ -24,8 +24,12 @@ namespace settings {
 		const uint32_t tickBudget = 1000 / 60;
 	}
 
+	namespace ahrs {
+		const uint32_t tickInterval = 1000 / 30;
+	}
+
 	namespace transceiver {
-		const uint32_t tickInterval = 1000 / 10;
+		const uint32_t tickInterval = 1000 / 30;
 
 		const uint32_t packetHeader = 0x506C416E;
 		const float frequency = 915;

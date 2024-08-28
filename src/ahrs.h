@@ -92,6 +92,7 @@ class AHRS {
 	private:
 		MPU9250 _imu = MPU9250(Wire, 0x68);
 		Adafruit_BMP280 _bmp = Adafruit_BMP280(&Wire);
+		uint32_t _tickDeadline = 0;
 
 		LocalData _localData = LocalData();
 		RemoteData _remoteData = RemoteData();

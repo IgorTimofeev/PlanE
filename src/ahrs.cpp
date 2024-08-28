@@ -41,6 +41,9 @@ void AHRS::begin() {
 }
 
 void AHRS::tick(Aircraft &aircraft) {
+	if (millis() < _tickDeadline)
+		return;
+
 	_imu.readSensor();
 
 	_localData.setRoll(atan2(_imu.getAccelY_mss(), -_imu.getAccelZ_mss()));
@@ -107,6 +110,8 @@ void AHRS::tick(Aircraft &aircraft) {
 //	Serial.print("[BMP280] Speed: ");
 //	Serial.print(_localData.getSpeed());
 //	Serial.println(" m");
+
+	_tickDeadline = millis() + settings::ahrs::tickInterval;
 }
 
 LocalData &AHRS::getLocalData() {

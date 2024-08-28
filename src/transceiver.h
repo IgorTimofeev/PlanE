@@ -12,9 +12,9 @@
 
 class Aircraft;
 
-enum TransceiverMode : uint8_t {
-	Idle,
-	Transmit,
+enum class TransceiverMode : uint8_t {
+	StartTransmit,
+	FinishTransmit,
 	Receive
 };
 
@@ -33,7 +33,7 @@ class Transceiver {
 
 		uint8_t _sx1262Buffer[256] {};
 
-		TransceiverMode _mode = TransceiverMode::Idle;
+		TransceiverMode _mode = TransceiverMode::StartTransmit;
 		static volatile bool _canOperate;
 		ICACHE_RAM_ATTR static void onDio1Action();
 		uint32_t _tickDeadline = 0;
@@ -43,8 +43,14 @@ class Transceiver {
 		uint8_t _AESIVCopy[sizeof(_AESIV)] {};
 		uint8_t _AESBuffer[sizeof(_sx1262Buffer)] {};
 
+		void transmit(Aircraft& aircraft);
+
 		template<typename T>
-		void transmit(PacketType packetType, const T& packet);
+		void transmitPacket(PacketType packetType, const T& packet);
+
 		void receive(Aircraft &aircraft);
+
+		void finishTransmit();
+
 		void parsePacket(Aircraft &aircraft, uint8_t* bufferPtr);
 };

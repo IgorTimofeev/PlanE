@@ -33,42 +33,62 @@ void Transceiver::begin() {
 
 	_sx1262.setDio1Action(onDio1Action);
 
-	_mode = TransceiverMode::Transmit;
+	_mode = TransceiverMode::StartTransmit;
 }
 
 void Transceiver::tick(Aircraft &aircraft) {
 	if (!_canOperate || millis() < _tickDeadline)
 		return;
 
-	auto& ahrs = aircraft.getAHRS();
-
 	switch (_mode) {
-		case Idle:
+		case TransceiverMode::StartTransmit:
+			transmit(aircraft);
 			break;
 
-		case Transmit:
-			transmit(
-				PacketType::AircraftAHRS,
-				AircraftAHRSPacket{
-					.throttle = ahrs.getRemoteData().getThrottle(),
-					.ailerons = ahrs.getRemoteData().getAilerons(),
-					.rudder = ahrs.getRemoteData().getRudder(),
-					.flaps = ahrs.getRemoteData().getFlaps(),
+		case TransceiverMode::FinishTransmit:
+			finishTransmit();
 
-					.pitch = ahrs.getLocalData().getPitch(),
-					.roll = ahrs.getLocalData().getRoll(),
-					.yaw = ahrs.getLocalData().getYaw(),
+			break;
 
-					.temperature = ahrs.getLocalData().getTemperature(),
-					.pressure = ahrs.getLocalData().getPressure(),
+		case TransceiverMode::Receive:
+//	receive(aircraft);
 
-					.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
-					.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+//			_mode = TransceiverMode::Transmit;
 
-					.altitude = ahrs.getLocalData().getAltitude(),
-					.speed = ahrs.getLocalData().getSpeed(),
+			break;
+	}
 
-					.strobeLights = ahrs.getRemoteData().getStrobeLights(),
+	aircraft.getOnboardLed().blink();
+
+	_tickDeadline = millis() + settings::transceiver::tickInterval;
+}
+
+
+void Transceiver::transmit(Aircraft& aircraft) {
+	auto& ahrs = aircraft.getAHRS();
+
+	transmitPacket(
+		PacketType::AircraftAHRS,
+		AircraftAHRSPacket{
+			.throttle = ahrs.getRemoteData().getThrottle(),
+			.ailerons = ahrs.getRemoteData().getAilerons(),
+			.rudder = ahrs.getRemoteData().getRudder(),
+			.flaps = ahrs.getRemoteData().getFlaps(),
+
+			.pitch = ahrs.getLocalData().getPitch(),
+			.roll = ahrs.getLocalData().getRoll(),
+			.yaw = ahrs.getLocalData().getYaw(),
+
+			.temperature = ahrs.getLocalData().getTemperature(),
+			.pressure = ahrs.getLocalData().getPressure(),
+
+			.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
+			.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+
+			.altitude = ahrs.getLocalData().getAltitude(),
+			.speed = ahrs.getLocalData().getSpeed(),
+
+			.strobeLights = ahrs.getRemoteData().getStrobeLights(),
 
 //			.throttle = 1,
 //			.ailerons = 2,
@@ -89,28 +109,14 @@ void Transceiver::tick(Aircraft &aircraft) {
 //			.speed =12,
 //
 //			.strobeLights = true,
-				}
-			);
-
-//			_mode = TransceiverMode::Receive;
-
-			break;
-
-		case Receive:
-//	receive(aircraft);
-
-//			_mode = TransceiverMode::Transmit;
-
-			break;
-	}
-
-	aircraft.getOnboardLed().blink();
-
-	_tickDeadline = millis() + settings::transceiver::tickInterval;
+		}
+	);
 }
 
 template<typename T>
-void Transceiver::transmit(PacketType packetType, const T& packet) {
+void Transceiver::transmitPacket(PacketType packetType, const T& packet) {
+	_canOperate = false;
+
 	auto wrapper = PacketTypeWrapper<T>(packetType, packet);
 
 	uint8_t wrapperLength = sizeof(wrapper);
@@ -141,15 +147,23 @@ void Transceiver::transmit(PacketType packetType, const T& packet) {
 
 	esp_aes_free(&aes);
 
-	Serial.printf("[SX1262] Transmitting packet with type %d of %d bytes\n", packetType, totalLength);
-
-	_canOperate = false;
+//	Serial.printf("[SX1262] Transmitting packet with type %d of %d bytes\n", packetType, totalLength);
 
 	auto state = _sx1262.startTransmit(_AESBuffer, totalLength);
 
-	if (state != RADIOLIB_ERR_NONE) {
-		Serial.print("[SX1262] Transmitting failed");
-	}
+	if (state != RADIOLIB_ERR_NONE)
+		Serial.printf("[SX1262] Transmitting failed with code: %d\n", state);
+
+	_mode = TransceiverMode::FinishTransmit;
+}
+
+void Transceiver::finishTransmit() {
+	auto state = _sx1262.finishTransmit();
+
+	if (state != RADIOLIB_ERR_NONE)
+		Serial.printf("[SX1262] finishTransmit() failed with code %d\n", state);
+
+	_mode = TransceiverMode::StartTransmit;
 }
 
 void Transceiver::receive(Aircraft &aircraft) {
