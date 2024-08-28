@@ -3,6 +3,7 @@
 #include "SPI.h"
 #include "ahrs.h"
 #include "transceiver.h"
+#include "onboard_led.h"
 
 class Aircraft {
 	public:
@@ -11,8 +12,10 @@ class Aircraft {
 
 		AHRS& getAHRS();
 		Transceiver& getTransceiver();
+		OnboardLED &getOnboardLed();
 
 	private:
 		AHRS _ahrs = AHRS();
 		Transceiver _transceiver = Transceiver();
+		OnboardLED _onboardLED = OnboardLED();
 };

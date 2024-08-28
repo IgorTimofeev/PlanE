@@ -19,8 +19,8 @@ void AHRS::begin() {
 	Serial.println("[MPU9250] Calibrating");
 	// // Already calibrated in begin()?
 	// // _imu.calibrateGyro();
-	_imu.calibrateAccel();
-	_imu.calibrateMag();
+//	_imu.calibrateAccel();
+//	_imu.calibrateMag();
 
 	Serial.println("[BMP280] Initializing");
 

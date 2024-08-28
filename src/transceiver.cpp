@@ -2,20 +2,24 @@
 #include "aircraft.h"
 #include "packet.h"
 
+volatile bool Transceiver::_canOperate = true;
+
 void Transceiver::begin() {
 	Serial.println("[SX1262] Initializing");
 
 	auto state = _sx1262.begin(
-		// Hz  center frequency
-		915000000,
-		// dBm tx output power
-		22
+		settings::transceiver::frequency,
+		settings::transceiver::bandwidth,
+		settings::transceiver::spreadingFactor,
+		settings::transceiver::codingRate,
+		RADIOLIB_SX126X_SYNC_WORD_PRIVATE,
+		settings::transceiver::power,
+		settings::transceiver::preambleLength,
+		0,
+		false
 	);
 
-	if (state == ERR_NONE) {
-
-	}
-	else {
+	if (state != RADIOLIB_ERR_NONE) {
 		Serial.print("[SX1262] Failure, code: ");
 		Serial.println(state);
 
@@ -23,61 +27,44 @@ void Transceiver::begin() {
 			delay(100);
 	}
 
-	_sx1262.LoRaConfig(
-		// spreading factor [SF5..SF12]
-		7,
-		// bandwidth
-		// 2: 31.25Khz
-		// 3: 62.5Khz
-		// 4: 125Khz
-		// 5: 250KHZ
-		// 6: 500Khz
-		4,
-		// [1: 4/5,
-		//  2: 4/6,
-		//  3: 4/7,
-		//  4: 4/8]
-		1,
-		// Same for Tx and Rx
-		8,
-		// 0: Variable length packet (explicit header)
-		// 1..255  Fixed length packet (implicit header)
-		0,
-		//crcOn
-		true,
-		//invertIrq
-		false
-	);
+	_sx1262.setDio1Action(setFlag);
 
-	Serial.println("[AES] Initializing");
-
+	_mode = TransceiverMode::Transmit;
 }
 
 void Transceiver::tick(Aircraft &aircraft) {
+	if (!_canOperate || millis() < _tickDeadline)
+		return;
+
 	auto& ahrs = aircraft.getAHRS();
 
-	send(
-		PacketType::AircraftAHRS,
-		AircraftAHRSPacket {
-			.throttle = ahrs.getRemoteData().getThrottle(),
-			.ailerons = ahrs.getRemoteData().getAilerons(),
-			.rudder = ahrs.getRemoteData().getRudder(),
-			.flaps = ahrs.getRemoteData().getFlaps(),
+	switch (_mode) {
+		case Idle:
+			break;
 
-			.pitch = ahrs.getLocalData().getPitch(),
-			.roll = ahrs.getLocalData().getRoll(),
-			.yaw = ahrs.getLocalData().getYaw(),
+		case Transmit:
+			transmit(
+				PacketType::AircraftAHRS,
+				AircraftAHRSPacket{
+					.throttle = ahrs.getRemoteData().getThrottle(),
+					.ailerons = ahrs.getRemoteData().getAilerons(),
+					.rudder = ahrs.getRemoteData().getRudder(),
+					.flaps = ahrs.getRemoteData().getFlaps(),
 
-			.temperature = ahrs.getLocalData().getTemperature(),
-			.pressure = ahrs.getLocalData().getPressure(),
+					.pitch = ahrs.getLocalData().getPitch(),
+					.roll = ahrs.getLocalData().getRoll(),
+					.yaw = ahrs.getLocalData().getYaw(),
 
-			.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
-			.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
+					.temperature = ahrs.getLocalData().getTemperature(),
+					.pressure = ahrs.getLocalData().getPressure(),
 
-			.altitude = ahrs.getLocalData().getAltitude(),
-			.speed = ahrs.getLocalData().getSpeed(),
+					.altimeterMode = ahrs.getRemoteData().getAltimeterMode(),
+					.altimeterPressure = ahrs.getRemoteData().getAltimeterPressure(),
 
-			.strobeLights = ahrs.getRemoteData().getStrobeLights(),
+					.altitude = ahrs.getLocalData().getAltitude(),
+					.speed = ahrs.getLocalData().getSpeed(),
+
+					.strobeLights = ahrs.getRemoteData().getStrobeLights(),
 
 //			.throttle = 1,
 //			.ailerons = 2,
@@ -98,14 +85,28 @@ void Transceiver::tick(Aircraft &aircraft) {
 //			.speed =12,
 //
 //			.strobeLights = true,
-		}
-	);
+				}
+			);
 
+//			_mode = TransceiverMode::Receive;
+
+			break;
+
+		case Receive:
 //	receive(aircraft);
+
+//			_mode = TransceiverMode::Transmit;
+
+			break;
+	}
+
+	aircraft.getOnboardLed().blink();
+
+	_tickDeadline = millis() + settings::transceiver::tickInterval;
 }
 
 template<typename T>
-void Transceiver::send(PacketType packetType, const T& packet) {
+void Transceiver::transmit(PacketType packetType, const T& packet) {
 	auto wrapper = PacketTypeWrapper<T>(packetType, packet);
 
 	uint8_t wrapperLength = sizeof(wrapper);
@@ -136,59 +137,61 @@ void Transceiver::send(PacketType packetType, const T& packet) {
 
 	esp_aes_free(&aes);
 
-//	Serial.printf("[SX1262] Sending packet with type %d of %d bytes\n", packetType, totalLength);
+	Serial.printf("[SX1262] Transmitting packet with type %d of %d bytes\n", packetType, totalLength);
 
-	if (_sx1262.Send(_AESBuffer, totalLength, SX126x_TXMODE_SYNC)) {
+	auto state = _sx1262.startTransmit(_AESBuffer, totalLength);
 
+	if (state == RADIOLIB_ERR_NONE) {
+		_canOperate = false;
 	}
 	else {
-		Serial.print("[SX1262] Sending failed");
+		Serial.print("[SX1262] Transmitting failed");
 	}
 }
 
 void Transceiver::receive(Aircraft &aircraft) {
-	uint8_t receivedLength = _sx1262.Receive(_sx1262Buffer, sizeof(_sx1262Buffer));
-
-	if (receivedLength == 0)
-		return;
-
-//	Serial.printf("[Transceiver] Got packet of %d bytes\n", receivedLength);
-
-	// Checking header
-	auto header = ((uint32_t*) &_sx1262Buffer)[0];
-	uint8_t headerLength = sizeof(settings::transceiver::packetHeader);
-
-	if (header != settings::transceiver::packetHeader) {
-		Serial.printf("[Transceiver] Unsupported header: %02X\n", header);
-		return;
-	}
-
-	uint8_t encryptedLength = receivedLength - headerLength;
-
-	// Decrypting
-	auto aes = esp_aes_context();
-	esp_aes_init(&aes);
-	esp_aes_setkey(&aes, _AESKey, sizeof(_AESKey) * 8);
-
-	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
-
-	auto decryptState = esp_aes_crypt_cbc(
-		&aes,
-		ESP_AES_DECRYPT,
-		encryptedLength,
-		_AESIVCopy,
-		(uint8_t*) &_sx1262Buffer + headerLength,
-		_AESBuffer
-	);
-
-	esp_aes_free(&aes);
-
-	if (decryptState == 0) {
-		parsePacket(aircraft, _AESBuffer);
-	}
-	else {
-		Serial.printf("Decrypting failed: %d\n", encryptedLength);
-	}
+//	uint8_t receivedLength = _sx1262.Receive(_sx1262Buffer, sizeof(_sx1262Buffer));
+//
+//	if (receivedLength == 0)
+//		return;
+//
+////	Serial.printf("[Transceiver] Got packet of %d bytes\n", receivedLength);
+//
+//	// Checking header
+//	auto header = ((uint32_t*) &_sx1262Buffer)[0];
+//	uint8_t headerLength = sizeof(settings::transceiver::packetHeader);
+//
+//	if (header != settings::transceiver::packetHeader) {
+//		Serial.printf("[Transceiver] Unsupported header: %02X\n", header);
+//		return;
+//	}
+//
+//	uint8_t encryptedLength = receivedLength - headerLength;
+//
+//	// Decrypting
+//	auto aes = esp_aes_context();
+//	esp_aes_init(&aes);
+//	esp_aes_setkey(&aes, _AESKey, sizeof(_AESKey) * 8);
+//
+//	memcpy(_AESIVCopy, _AESIV, sizeof(_AESIV));
+//
+//	auto decryptState = esp_aes_crypt_cbc(
+//		&aes,
+//		ESP_AES_DECRYPT,
+//		encryptedLength,
+//		_AESIVCopy,
+//		(uint8_t*) &_sx1262Buffer + headerLength,
+//		_AESBuffer
+//	);
+//
+//	esp_aes_free(&aes);
+//
+//	if (decryptState == 0) {
+//		parsePacket(aircraft, _AESBuffer);
+//	}
+//	else {
+//		Serial.printf("Decrypting failed: %d\n", encryptedLength);
+//	}
 }
 
 void Transceiver::parsePacket(Aircraft &aircraft, uint8_t* bufferPtr) {
@@ -223,4 +226,8 @@ void Transceiver::parsePacket(Aircraft &aircraft, uint8_t* bufferPtr) {
 
 			break;
 	}
+}
+
+void Transceiver::setFlag(void) {
+	_canOperate = true;
 }

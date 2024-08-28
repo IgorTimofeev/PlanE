@@ -3,13 +3,23 @@
 void Aircraft::begin() {
 	SPI.begin();
 
+	_onboardLED.begin();
 	_transceiver.begin();
 	_ahrs.begin();
 }
 
 void Aircraft::tick() {
+	uint32_t startTime = millis();
+
 	_ahrs.tick(*this);
 	_transceiver.tick(*this);
+	_onboardLED.tick();
+
+	uint32_t tickCost = millis() - startTime;
+
+	// Svit slip u stenki.........
+	if (tickCost < settings::aircraft::tickBudget)
+		delayMicroseconds(settings::aircraft::tickBudget - tickCost);
 }
 
 AHRS &Aircraft::getAHRS() {
@@ -18,4 +28,8 @@ AHRS &Aircraft::getAHRS() {
 
 Transceiver &Aircraft::getTransceiver() {
 	return _transceiver;
+}
+
+OnboardLED &Aircraft::getOnboardLed() {
+	return _onboardLED;
 }
